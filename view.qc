@@ -4,10 +4,17 @@ float STAT_SHAKEPOWER = 35;
 float STAT_VIEWMODELPOS_X = 41;
 float STAT_VIEWMODELPOS_Y = 42;
 float STAT_VIEWMODELPOS_Z = 43;
+float STAT_SFOV = 39;
 
-float STAT_VIEWMODEL_MOD = 44;
+float FOV_ZOOM = 70;
+
+float STAT_MUZZLEFLASH = 44; 
+float STAT_WEAPONID = 33;
 
 static vector viewmodelpos;
+static vector muzzle_org;
+
+entity streak;
 
 // minimum speed to bob and play run/walk animations at
 static const float 	MIN_BOB_SPEED = 5.0;
@@ -93,6 +100,24 @@ float		shakeinterval;
 float() crandom =
 {
     return 2 * (random() - 0.5);
+};
+
+vector getweaponang[14] =
+{
+	'0 0 0', // fist
+	'0 0 0', // fist
+	'0 0 0', // pistol
+	'0 0 0', // shotgun
+	'-1.6 2.5 6.2', // hyperblaster
+	'9.7 4.6 -1.1', // grenade launcher
+	'-3.1 -7.2 0.3', // nailgun
+	'-5.7 -3.9 -1.2', // rocket launcher
+	'0 0 0', // rocket launcher
+	'0 0 0', // bfg 9000
+	'0 0 0', // chainsaw
+	'0 0 0', // super shotgun
+	'0 0 0', // soul cube
+	'0 0 0', // fist
 };
 
 //==============================================
@@ -220,7 +245,7 @@ void() idPlayer_Think =
 		stepUpTime = time;
 	}
 	
-	if ( (cur_buttons & 2) && !(view.old_onground)) {
+	if ( cur_buttons & 2 ) {
 		// bounce the view weapon
 		idx = currentLoggedAccel&(NUM_LOGGED_ACCELS-1);
 		currentLoggedAccel++;
@@ -357,17 +382,17 @@ void() idPlayer_CalculateViewWeaponPos =
 	float		scale;
 	float		fracsin;
 	float		delta;
-
+	
 	// these cvars are just for hand tweaking before moving a value to the weapon def
 	vector	gunpos = '0 0 0';
-	float viewmodel_modifier = getstatf(STAT_VIEWMODEL_MOD);
 	
-	if (viewmodel_modifier == 0)
-		viewmodel_modifier = 1;
+	viewmodel.origin = viewmodelpos * 3.5;  // wait what
 
 	// as the player changes direction, the gun will take a small lag
 	vector	gunOfs = idPlayer_GunAcceleratingOffset();
-	viewmodel.origin = getviewprop(VF_ORIGIN) + (gunpos + gunOfs) * viewmodel_modifier + viewmodelpos - getviewprop(VF_ORIGIN);
+	viewmodel.origin += getviewprop(VF_ORIGIN) + (gunpos + gunOfs) - getviewprop(VF_ORIGIN);
+
+	// what the fuck ? ^
 
 	// on odd legs, invert some angles
 	if ( view.bobCycle & 128 ) {
@@ -378,8 +403,13 @@ void() idPlayer_CalculateViewWeaponPos =
 
 	// gun angles from bobbing
 	viewmodel.angles[ROLL]		= scale * view.bobfracsin * 0.005;
-	viewmodel.angles[YAW]		= scale * view.bobfracsin * 0.01;
+	viewmodel.angles[YAW]		= scale * view.bobfracsin * 0.005;
 	viewmodel.angles[PITCH]		= view.xyspeed * view.bobfracsin * 0.005 * -1;
+	viewmodel.origin_z		+= view.xyspeed * view.bobfracsin * 0.003 * -1;
+	
+	float id = getstatf(STAT_WEAPONID);
+	vector ang = getweaponang[id];
+	viewmodel.angles += ang;
 
 	// gun angles from turning
 	vector	turnOfs = idPlayer_GunTurningOffset();
@@ -391,8 +421,13 @@ void() idPlayer_CalculateViewWeaponPos =
 	delta = time - view.landTime;
 	if ( delta < LAND_DEFLECT_TIME ) {
 		viewmodel.origin_z += ( view.landChange*0.25 * delta / LAND_DEFLECT_TIME );
+
+		//print ("not landed","\n");
 	} else if ( delta < LAND_DEFLECT_TIME + LAND_RETURN_TIME ) {
 		viewmodel.origin_z += ( view.landChange*0.25 * (LAND_DEFLECT_TIME + LAND_RETURN_TIME - delta) / LAND_RETURN_TIME );
+
+	//	print ("landed","\n");
+
 	}
 
 	// speed sensitive idle drift
@@ -401,9 +436,7 @@ void() idPlayer_CalculateViewWeaponPos =
 	viewmodel.angles[ROLL]	+= fracsin;
 	viewmodel.angles[YAW]	+= fracsin;
 	viewmodel.angles[PITCH]	+= -fracsin;
-
-	viewmodel.angles *= viewmodel_modifier;
-};
+}
 
 //==============================================
 //	idPlayer_BobCycle
@@ -505,13 +538,22 @@ void() idPlayer_BobCycle =
 
 float	IT_INVISIBILITY			= 1<<19;
 float	IT_CHAINGUN				= 1<<4;
-
+.vector glowmod;
 
 void() V_GunModel =
 {
 	if ( viewmodel ) {
-		float newframe, newmodel;
 
+		float sfov = getstatf(STAT_SFOV);
+
+		if (sfov == FOV_ZOOM)
+		{
+			viewmodel.modelindex = 0;	
+			return;
+		}
+
+		float newframe, newmodel;
+	
 		newframe = getstatf(STAT_WEAPONFRAME);
 		newmodel = getstatf(STAT_WEAPONMODELI);
 
@@ -519,6 +561,7 @@ void() V_GunModel =
 			viewmodel.modelindex = newmodel;
 			viewmodel.frame2 = viewmodel.frame = newframe;
 			viewmodel.frame2time = viewmodel.frame1time = viewmodel.lerptime = time;
+
 		} else if (newframe != viewmodel.frame) {
 			viewmodel.frame2 = viewmodel.frame;
 			viewmodel.frame = newframe;
@@ -528,12 +571,12 @@ void() V_GunModel =
 		}
 		
 		if ( viewmodel.lerptime < 0 ) {
-			viewmodel.lerptime = 0.0159;
+			viewmodel.lerptime = 1.0;
 		}
 		
 		if ( cvar("r_lerpmodels")) {
 			viewmodel.lerpfrac = (viewmodel.frame1time - viewmodel.frame2time) / viewmodel.lerptime;
-			viewmodel.frame2time += 0.0159;
+			viewmodel.frame2time += frametime;
 		} else {
 			viewmodel.lerpfrac = 0;
 		}
@@ -551,9 +594,164 @@ void() V_GunModel =
 		viewmodelpos_x = getstatf(STAT_VIEWMODELPOS_X);
 		viewmodelpos_y = getstatf(STAT_VIEWMODELPOS_Y);
 		viewmodelpos_z = getstatf(STAT_VIEWMODELPOS_Z);
+		
+		
 		addentity(viewmodel);
+		addentity(streak);
 	}
 };
+
+
+void(vector origin, string textname, float size, float alpha) Draw_Pane =
+{	
+	makevectors(getviewprop(VF_CL_VIEWANGLES));
+    
+   	R_BeginPolygon(textname);
+	vector right = v_right, up = v_up;
+
+    // topright
+    	R_PolygonVertex(origin + (right * size) + (up * size), [1, 0], [1, 1, 1], alpha);
+
+    // topleft
+    	R_PolygonVertex(origin - (right * size) + (up * size), [0, 0], [1, 1, 1], alpha);
+
+    // botleft
+    	R_PolygonVertex(origin - (right * size) - (up * size), [0, 1], [1, 1, 1], alpha);
+
+    // botright
+    	R_PolygonVertex(origin + (right * size) - (up * size), [1, 1], [1, 1, 1], alpha);
+
+    	R_EndPolygon();
+};
+
+float () getmuzzleflashsize =
+{
+	if (getstats(47) == "weapon_grenadelauncher")
+		return rint(12);
+
+	if (getstats(47) == "weapon_rocketlauncher")
+		return rint(16);
+
+	if (getstats(47) == "weapon_nailgun")
+		return rint(9 + random()*14);
+
+	if (getstats(47) == "weapon_hyperblaster")
+		return rint(6 + random()*14);
+
+	return rint(5 + random()*14);
+};
+
+string() getmuzzleflashtext = 
+{	
+	if (getstats(47) == "weapon_grenadelauncher")
+		return "effects/weapons/shotgun_mflash";
+
+	if (getstats(47) == "weapon_rocketlauncher")
+		return "effects/weapons/shotgun_mflash";
+
+	if (getstats(47) == "weapon_hyperblaster")
+		return "effects/weapons/blaster_mflash";
+	
+	return "effects/weapons/mgun_muzzleflash";
+};
+
+void () V_Muzzleflash = 
+{	
+	if (getstatf(STAT_SFOV) == FOV_ZOOM)
+		return;
+
+	if (getstatf(STAT_MUZZLEFLASH) == 0)
+	{
+		setmodel( streak, "" );
+		return;
+	}
+
+	vector taginf = gettaginfo (viewmodel, gettagindex(viewmodel, "tag_muzzle"));
+	makevectors(getviewprop(VF_CL_VIEWANGLES));
+	muzzle_org = v_right * -taginf_y + v_up * taginf_z + v_forward * taginf_x + view_origin;
+			
+	float delta = time - view.landTime;	
+	if ( delta < LAND_DEFLECT_TIME ) 
+		muzzle_org_z -= ( view.landChange*-0.8 * delta / LAND_DEFLECT_TIME );
+
+	else if ( delta < LAND_DEFLECT_TIME + LAND_RETURN_TIME )
+		muzzle_org_z -= ( view.landChange*-1 * (LAND_DEFLECT_TIME + LAND_RETURN_TIME - delta) / LAND_RETURN_TIME ); 
+
+	float deltaTime = time - stepUpTime;
+	if ( deltaTime < STEPUP_TIME ) 
+		muzzle_org_z -= stepUpChange * ( STEPUP_TIME - deltaTime ) / STEPUP_TIME;
+	
+	if (getstatf(STAT_MUZZLEFLASH) == 2 )
+	{	
+		pointparticles (particleeffectnum("TE_EXHAUST"), muzzle_org, '0 0 0', 1);
+		setmodel( streak, "" );
+	}
+	else if (getstatf(STAT_MUZZLEFLASH) == 1 )
+		Draw_Pane (muzzle_org, getmuzzleflashtext(), getmuzzleflashsize(), 1);
+	
+	if (getstatf(STAT_MUZZLEFLASH) == 2 )
+		return;
+
+	if (getstats(47) == "weapon_nailgun") // nailgun
+	{	
+		setmodel( streak, "progs/weapons/nailgun/nozzle_streak.md3" );
+		streak.origin = viewmodel.origin;
+		streak.angles = viewmodel.angles;
+		streak.frame = viewmodel.frame;
+	}
+		
+};
+
+void() Lockedon_Marker =
+{
+	float enemy = getstatf(45);
+	//print(ftos(enemy));	
+
+	vector targ_org = getentity(enemy, GE_ORIGIN);
+	vector targ_maxs = getentity(enemy, GE_MAXS);
+	vector targ_mins = getentity(enemy, GE_MINS);
+	vector org;
+
+	if (getstats(47) == "weapon_rocketlauncher" && targ_org != '0 0 0') // draw guide
+	{
+		makevectors(getviewprop(VF_CL_VIEWANGLES));
+		//org = targ_org + (targ_mins + targ_maxs)*0.5;
+		pointparticles (particleeffectnum("TE_GUIDE"), targ_org + v_forward * -24, '0 0 0', 1);
+	//	print ("hello");
+		return;
+	}
+	
+	//print(vtos(targ_org), "\n");
+	if (targ_org == '0 0 0' || targ_maxs_z < 16)
+		return;
+	
+	makevectors(getviewprop(VF_CL_VIEWANGLES));
+	org = targ_org + (targ_mins + targ_maxs)*0.5;
+	Draw_Pane (org + v_forward * -30, "gfx/recticals/nailgun_scope_target", 32, 1);
+};
+
+void() Pre_Lockedon_Marker =
+{
+	float enemy = getstatf(46);
+	//print(ftos(enemy));	
+
+	vector targ_org = getentity(enemy, GE_ORIGIN);
+	vector targ_maxs = getentity(enemy, GE_MAXS);
+	vector targ_mins = getentity(enemy, GE_MINS);
+
+	//float targ_health = getentity(enemy, health);
+	
+	//print(vtos(targ_org), "\n");
+	if (targ_org == '0 0 0' || targ_maxs_z < 16)
+	{
+		return;
+	}
+	
+	makevectors(getviewprop(VF_CL_VIEWANGLES));
+	vector org = targ_org + (targ_mins + targ_maxs)*0.5;
+	Draw_Pane (org + v_forward * -30, "gfx/recticals/nailgun_scope_target_NAN", 32, 1);
+};
+
 
 //==============================================
 //	V_CalcRefDef
@@ -561,7 +759,7 @@ void() V_GunModel =
 
 static vector 		last_viewangles;
 static float 		fix_angles;
-float STAT_SFOV = 39;
+
 
 void() V_CalcRefDef =
 {
@@ -616,10 +814,15 @@ void() V_CalcRefDef =
 
 	if (sfov > 0) // incase fov change is needed
 		setviewprop(VF_AFOV, sfov);
+	
+	Pre_Lockedon_Marker ();
+	Lockedon_Marker ();
 
 	V_GunModel();
 	
 	idPlayer_Think();
+	
+	V_Muzzleflash ();
 	
 	idPlayer_BobCycle();
 
@@ -638,7 +841,7 @@ void() V_CalcRefDef =
 	}
 	
 	//========================================================
-	
+
 	// let engine handle tilting the screen if we're dead.
 	if ( getstatf(STAT_HEALTH) <= 0 ) {
 		return;
@@ -649,7 +852,15 @@ void() V_CalcRefDef =
 };
 
 void() V_Init =
-{
+{	
+	streak = spawn();
+	streak.renderflags = RF_VIEWMODEL|RF_DEPTHHACK;
+	setmodel( streak, "" );
+	setorigin( streak, '0 0 0');
+	streak.angles = '0 0 0';
+	streak.alpha = 1;
+	streak.colormod = '0 0 0';
+
 	viewmodel = spawn();
 	
 	viewmodel.renderflags = RF_VIEWMODEL|RF_DEPTHHACK;
@@ -664,4 +875,11 @@ void() V_Init =
 	
 	stepUpTime = 0.0;
 	stepUpChange = 0.0;
+
+	Draw_Pane ('0 0 0', "effects/weapons/mgun_muzzleflash", rint(5 + random()*14), 1);
+	Draw_Pane ('0 0 0', "effects/weapons/shotgun_mflash", rint(5 + random()*14), 1);
+	Draw_Pane ('0 0 0', "effects/weapons/blaster_mflash", rint(5 + random()*14), 1);
+	Draw_Pane ('0 0 0', "gfx/recticals/nailgun_scope_target", 32, 1);
+	Draw_Pane ('0 0 0', "gfx/recticals/nailgun_scope_target_NAN", 32, 1);
+	Draw_Pane ('0 0 0', "effects/weapons/guide", rint(5 + random()*14), 1);
 };
