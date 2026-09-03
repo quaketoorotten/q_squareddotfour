@@ -470,17 +470,19 @@ void(vector start, vector pos) line =
 	if (cvar("developer") == 0)
 		return;
 
-	WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
-	WriteByte(MSG_BROADCAST, TE_LIGHTNING2);
+		WriteByte (MSG_MULTICAST, SVC_CGAMEPACKET);
+		WriteByte (MSG_MULTICAST, THUNDER_STARTPOS);
+		WriteCoord (MSG_MULTICAST, pos_x);
+		WriteCoord (MSG_MULTICAST, pos_y);
+		WriteCoord (MSG_MULTICAST, pos_z);
 
-	WriteEntity(MSG_BROADCAST, self);
+		WriteCoord (MSG_MULTICAST, start_x);
+		WriteCoord (MSG_MULTICAST, start_y);
+		WriteCoord (MSG_MULTICAST, start_z);
 
-	WriteCoord(MSG_BROADCAST, start_x);
-	WriteCoord(MSG_BROADCAST, start_y);
-	WriteCoord(MSG_BROADCAST, start_z);
-	WriteCoord(MSG_BROADCAST, pos_x);
-	WriteCoord(MSG_BROADCAST, pos_y);
-	WriteCoord(MSG_BROADCAST, pos_z);
+		WriteEntity (MSG_MULTICAST, self);
+
+		multicast('0 0 0', MULTICAST_ALL);
 };
 
 

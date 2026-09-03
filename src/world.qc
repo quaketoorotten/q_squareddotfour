@@ -183,10 +183,10 @@ void() worldspawn =
 	else
 		cvar_set ("sv_gravity", "800");
 
-	cvar_set ("g_autoreload", "0");
-	cvar_set ("r_lerpmodels", "1");
-	cvar_set ("r_lerpmuzzlehack", "0");
+	//autocvar ("cl_autoreload", "0");
+	//autocvar ("cl_autochange", "0");
 
+	cvar_set ("r_lerpmodels", "1");
 	cvar_set ("r_lerpmuzzlehack", "0");
 
 	cvar_set ("physics_ode_contactsurfacelayer", "0.001");
@@ -196,6 +196,8 @@ void() worldspawn =
 	cvar_set ("physics_ode_world_damping_angular", "0.025");
 	cvar_set ("physics_ode_autodisable_time", "0");
 	cvar_set ("physics_ode_maxspeed", "1000");
+
+	max_players = ftoi(cvar("sv_maxclients"));
 
 // the area based ambient sounds MUST be the first precache_sounds
 
@@ -322,18 +324,61 @@ void() worldspawn =
 	precache_model ("progs/weapons/darkmatter/view.md3");
 	precache_model ("progs/weapons/darkmatter/darkmatter.md3");
 
-/*	precache_model ("progs/male/w_blaster.mdl");
-	precache_model ("progs/male/w_shotgun.mdl");
-	precache_model ("progs/male/w_sshotgun.mdl");
-	precache_model ("progs/male/w_machinegun.mdl");
-	precache_model ("progs/male/w_chaingun.mdl");
-	precache_model ("progs/male/w_rlauncher.mdl");
-	precache_model ("progs/male/w_glauncher.mdl");
-	precache_model ("progs/male/w_hyperblaster.mdl");
-	precache_model ("progs/male/w_railgun.mdl");
-	precache_model ("progs/male/w_bfg.mdl");
-	precache_model ("progs/male/a_grenades.mdl");*/
-	precache_model ("progs/player/player_slimy_transfer.md5.info");
+	precache_model ("progs/player/player.md5.info");
+
+	string mdl1, mdl2, mdl3;
+	string whole;
+
+	for (float i = 1; i <= 10; i ++)
+	{
+		mdl1 = "progs/player/marine/";
+		mdl2 = "player";
+		mdl3 = ".md5.info";
+
+		whole = strcat (mdl1, mdl2, ftos(i), mdl3);
+
+		precache_model(whole);
+	}
+
+	for (float i = 1; i <= 10; i ++)
+	{
+		mdl1 = "progs/player/bright/";
+		mdl2 = "player";
+		mdl3 = ".md5.info";
+		whole = strcat (mdl1, mdl2, ftos(i), mdl3);
+
+		precache_model(whole);
+	}
+
+	for (float i = 1; i <= 10; i ++)
+	{
+		mdl1 = "progs/player/marine2/";
+		mdl2 = "player";
+		mdl3 = ".md5.info";
+		whole = strcat (mdl1, mdl2, ftos(i), mdl3);
+
+		precache_model(whole);
+	}
+
+	for (float i = 1; i <= 10; i ++)
+	{
+		mdl1 = "progs/player/medic/";
+		mdl2 = "player";
+		mdl3 = ".md5.info";
+		whole = strcat (mdl1, mdl2, ftos(i), mdl3);
+
+		precache_model(whole);
+	}
+
+	for (float i = 1; i <= 10; i ++)
+	{
+		mdl1 = "progs/player/tech/";
+		mdl2 = "player";
+		mdl3 = ".md5.info";
+		whole = strcat (mdl1, mdl2, ftos(i), mdl3);
+
+		precache_model(whole);
+	}
 
 	precache_model ("progs/bolt.mdl");		// for lightning gun
 	precache_model ("progs/bolt2.mdl");		// for lightning gun
@@ -451,6 +496,7 @@ void() worldspawn =
 	particleeffectnum("TE_STROGG_BULLET");
 	particleeffectnum("TE_FLAMETHROWER");
 	particleeffectnum("TE_FLAMETHROWER1");
+	particleeffectnum("TE_ONFIRE");
 	item_precaches ();
 	
 	call_clientstats ();
@@ -509,12 +555,6 @@ void() StartFrame =
 {
     teamplay = cvar("teamplay");
     skill = cvar("skill");
-    framecount = framecount + 1;
-//	sessionframecount = sessionframecount + 1;
-
-// alkaline
- // 	if (framecount == 3)
-//		game_loaded = 1; //if this variable ever gets to zero again that means a savegame was loaded
 
 	if(!game_loaded && framecount > 2)
 	{	
@@ -569,6 +609,7 @@ void() call_clientstats =
 	clientstat(62, EV_FLOAT, savedammo_rockets);
 	clientstat(63, EV_FLOAT, savedammo_slugs);
 	clientstat(64, EV_FLOAT, savedammo_dmc);
+	clientstat(65, EV_FLOAT, oldweaponid);
 }
 
 /*

@@ -139,7 +139,7 @@ void(entity inflictor) Poison_ =
 	if (self.health <= 0)
 		return;
 
-	entity oself;
+//	entity oself;
 	local entity tox;
 	tox = spawn();
 	setorigin(tox, inflictor.origin);
@@ -148,18 +148,14 @@ void(entity inflictor) Poison_ =
 	tox.ltime = time + 3;
 	tox.enemy = self;
 
-	oself = self;
-	self = tox;
-	self.think = Poison_DoDmg;
-	self.nextthink = time;
-	self.classname = "poison";
-
-	self = oself;
+	tox.think = Poison_DoDmg;
+	tox.nextthink = time;
+	tox.classname = "poison";
 };
 
 /*
 ============
-Infight_checks
+Infight checks
 
 Buncha conditions for infighting
 ============
@@ -192,6 +188,55 @@ float(entity attacker) Retaliate =
 		return FALSE; 
 
 	 return TRUE; 
+};
+
+void(entity attacker) M_ReactToDamage =
+{
+	if (!(attacker.flags & FL_CLIENT) && !(attacker.flags & FL_MONSTER))
+		return;
+
+	if (attacker == self || attacker == self.enemy)
+		return;
+
+	// we now know that we are not both good guys
+
+	// if attacker is a client, get mad at them because he's good and we're not
+	if ((attacker.flags & FL_CLIENT))
+	{
+		// this can only happen in coop (both new and old enemies are clients)
+		// only switch if can't see the current enemy
+		if (self.enemy && (self.enemy.flags & FL_CLIENT))
+		{
+			if (visible(self.enemy))
+			{
+				self.oldenemy = attacker;
+				return;
+			}
+			self.oldenemy = self.enemy;
+		}
+		self.enemy = attacker;
+		FoundTarget (self);
+		return;
+	}
+
+	// it's the same base (walk/swim/fly) type and a different classname and it's not a tank
+	// (they spray too much), get mad at them
+	if (((self.flags & (FL_FLY|FL_SWIM)) == (attacker.flags & (FL_FLY|FL_SWIM))) &&
+		(self.classname != attacker.classname) && Retaliate(attacker) )
+	{
+		if (self.enemy && (self.enemy.flags & FL_CLIENT))
+			self.oldenemy = self.enemy;
+		self.enemy = attacker;
+		FoundTarget (self);
+	}
+	// if they *meant* to shoot us, then shoot back
+	else if (attacker.enemy == self)
+	{
+		if (self.enemy && (self.enemy.flags & FL_CLIENT))
+			self.oldenemy = self.enemy;
+		self.enemy = attacker;
+		FoundTarget (self);
+	}
 };
 
 /*
@@ -282,10 +327,14 @@ void(entity targ, entity inflictor, vector inflictor_org, entity attacker, float
 	{
 		if(kick && (checkbottom(targ)) && !(targ.flags & FL_LEAP) )
 		{		
+			vector client_org = '0 0 0';
 			if((targ.flags & FL_MONSTER))
-				inflictor_org[2] = targ.origin[2];				
+				inflictor_org[2] = targ.origin[2];		
 
-			local vector dir = targ.origin - inflictor_org;
+			if ((targ.flags & FL_CLIENT))
+				client_org = '0 0 24';		
+
+			local vector dir = (targ.origin + client_org) - inflictor_org;
 			dir = normalize(dir);
 
 			if ((targ.flags & FL_CLIENT) && attacker == targ)
@@ -342,39 +391,33 @@ void(entity targ, entity inflictor, vector inflictor_org, entity attacker, float
 	if (MOD == DMGTYPE_TOX)
 		Poison_ (inflictor);
 
-	if ( (self.flags & FL_MONSTER) && !(self.flags & FL_MEDIC) && Retaliate(attacker)
-		&& ( (attacker.flags & FL_MONSTER) || (attacker.flags & FL_CLIENT) ) )
+	if ((self.flags & FL_MONSTER) && !(self.flags & FL_MEDIC))
 	{
-		if (self != attacker && attacker != self.enemy 
-			 && ((self.flags & (FL_FLY|FL_SWIM)) == (attacker.flags & (FL_FLY|FL_SWIM)))
-			&& (!(self.enemy.flags & FL_MONSTER))) // dont infight while already INFIGHTINg
+		M_ReactToDamage (attacker);
+		if (!(self.flags & FL_DODGED) && (take))
 		{
-			if ( (self.classname != attacker.classname) )
-			{
-				if ((self.enemy.flags & FL_CLIENT))
-					self.oldenemy = self.enemy;
+			self.th_pain (attacker, take, MOD);
 
-				self.enemy = attacker;
-				FoundTarget (self);
+			if (MOD != DMGTYPE_LTNG) // if isnt lightning damage take default 
+			{	
+				// nightmare mode monsters don't go into pain frames often
+				if (skill >= 2 && (self.flags & FL_MONSTER))
+					self.pain_finished = time + 5;
 			}
-				
-		}
 
+			if (MOD == DMGTYPE_DMG)
+				self.pain_finished = time + 0.1;
+		}
 	}
-
-	if (self.th_pain && take > 0)
+	else if (self.flags & FL_CLIENT)
 	{
-		self.th_pain (attacker, take, MOD);
-		// nightmare mode monsters don't make pain noises often	
-
-		if (MOD != DMGTYPE_LTNG) // if isnt lightning damage take default 
-		{
-			if (skill >= 2 && (self.flags & FL_MONSTER))
-				self.pain_finished = time + 3;
-		}
-
-		if (MOD == DMGTYPE_DMG)
-			self.pain_finished = time + 0.1;
+		if (!(self.flags & FL_GODMODE) && (take))
+			self.th_pain (attacker, take, MOD);
+	}
+	else if (take)
+	{
+		if (self.th_pain)
+			self.th_pain (attacker, take, MOD);
 	}
 
 	self = oldself;

@@ -1,5 +1,5 @@
 
-float	modelindex_eyes, modelindex_player;
+//float	modelindex_eyes, modelindex_player;
 
 /*
 =============================================================================
@@ -185,9 +185,40 @@ void() SetChangeParms =
 	parm17 = self.ammo_slugs;
 };
 
+void() SetRespawnParms =
+{	
+	self.items = self.items - (self.items & 
+	(IT_ARMOR1 | IT_ARMOR2 | IT_ARMOR3) );
+
+	self.powerups = self.powerups - (self.powerups & 
+	(IT_INVISIBILITY | IT_SUIT | IT_QUAD) );
+
+// cap super health
+
+	parm1 = self.items;
+	parm2 = 100;
+	parm3 = 0;
+	parm4 = self.ammo_bullets;
+	parm5 = self.ammo_nails;
+	parm6 = self.ammo_rockets;
+	parm7 = self.ammo_cells;
+
+	parm8 = self.weaponid;
+
+	parm9 = 0;
+	parm10 = 0;
+	parm11 = encode(self.savedammo_shells, self.savedammo_dmc, self.savedammo_nails);
+	parm12 = encode(self.savedammo_bullets, self.savedammo_rockets, self.savedammo_cells);
+	parm13 = encode(self.savedammo_slugs, self.savedammo_grenades, self.ammo_dmc);
+	parm14 = self.ammo_shells;
+	parm15 = self.ammo_coils;
+	parm16 = self.ammo_grenades;
+	parm17 = self.ammo_slugs;
+};
+
 void() SetNewParms =
 {
-	parm1 = IT_WEP_TWO | IT_WEP_ONE ;
+	parm1 = IT_WEP_TWO | IT_WEP_ONE;
 	parm2 = 100;
 	parm3 = 0;
 	parm4 = 80;
@@ -498,6 +529,13 @@ void() execute_changelevel =
 		other.solid = SOLID_NOT;
 		other.movetype = MOVETYPE_NONE;
 		other.modelindex = 0;
+		other.powerups = other.powerups - (other.powerups & (IT_INVISIBILITY | IT_SUIT | IT_QUAD) );
+
+		other.invisible_finished = 0;	
+		other.invincible_finished = 0;
+		other.super_damage_finished = 0;
+		other.radsuit_finished = 0;
+
 		sound(other, CHAN_FIVE, "misc/null.wav", 1, ATTN_NORM);
 		setorigin (other, pos.origin);
 		other = find (other, classname, "player");
@@ -570,17 +608,13 @@ void() respawn =
 {
 	if (coop)
 	{
-		// make a copy of the dead body for appearances sake
-		CopyToBodyQue (self);
 		// get the spawn parms as they were at level start
-		setspawnparms (self);
+		SetRespawnParms ();
 		// respawn		
 		PutClientInServer ();
 	}
 	else if (deathmatch)
 	{
-		// make a copy of the dead body for appearances sake
-		CopyToBodyQue (self);
 		// set default spawn parms
 		SetNewParms ();
 		// respawn		
@@ -605,7 +639,7 @@ void() ClientKill =
 	bprint (self.netname);
 	bprint (" suicides\n");
 	set_suicide_frame ();
-	self.modelindex = modelindex_player;
+	//self.modelindex = modelindex_player;
 	self.frags = self.frags - 2;	// extra penalty
 	respawn ();
 };
@@ -680,6 +714,10 @@ entity() SelectSpawnPoint =
 	if (!spot)
 		error ("PutClientInServer: no info_player_start on level");
 	
+	//vector org;
+	//org = spot.origin + '0 0 -24';
+
+	//spot.origin = org;
 	return spot;
 };
 
@@ -693,7 +731,24 @@ called each time a player is spawned
 void() DecodeLevelParms;
 void() PlayerDie;
 
-float player_slimy_transfer;
+.vector view_ofs_guns;
+//float player_slimy_transfer;
+
+typedef struct { 
+	float state;
+	float jump_time;
+	float land_time;
+	float cooldown;
+} player_animation_info;
+
+typedef struct { 
+	float start;
+	float end;
+	float loop;
+} _framelimit;
+
+.player_animation_info animinfo;
+.string pmodel_name;
 
 void() PutClientInServer =
 {
@@ -724,13 +779,17 @@ void() PutClientInServer =
 	self.spawnmuzzleflash = 0;
 	self.dspeed = 0;
 	self.firerate = 0;
-	self.scale = 0.6;
+	self.scale = 0.75;
 	self.flash_active = 0;
 	self.flash_reactive = 0;
+	self.animinfo.land_time = 0;
+	self.animinfo.jump_time = 0;
+	self.animinfo.state = AS_RESTING;
+	self.newweaponid = 0;
+	self.oldweaponid = 0;
+	self.armor_rottime = 0;
 
 	DecodeLevelParms ();
-	
-	W_SetCurrentAmmo (FALSE);
 
 	self.attack_finished = time;
 	self.th_pain = player_pain;
@@ -738,35 +797,32 @@ void() PutClientInServer =
 	self.oldfov = 0;
 	self.fov = 0;
 	self.healamount = 0;
+	self.weaponstate = WEAPON_ACTIVATE;
 	
 	self.deadflag = DEAD_NO;
 // paustime is set by teleporters to keep the player from moving a while
 	self.pausetime = 0;
-	
-//	spot = SelectSpawnPoint ();
 
-	self.origin = spot.origin + '0 0 1';
+	self.origin = spot.origin + '0 0 -23';
 	self.angles = spot.angles;
 	self.fixangle = TRUE;		// turn this way immediately
 	self.oldorigin = self.origin;
-//	self.effects |= EF_NOSHADOW;
+	self.pmodel_name = infokey(self, "cl_player_model");
+
+	string modelstr = strcat ("progs/player/", self.pmodel_name, "/player", "1", ".md5.info");
+	setmodel (self, modelstr);
+	setsize(self, '-16 -16 0', '16 16 56');
+
+	W_SetCurrentAmmo (FALSE);
 	PlayerTrail_Init();
 
-// oh, this is a hack!
-	setmodel (self, "progs/eyes.mdl");
-	modelindex_eyes = self.modelindex;
-
-	setmodel (self, "progs/player/player_slimy_transfer.md5.info");
-	player_slimy_transfer = getmodelindex("progs/player/player_slimy_transfer.md5.info");
-	self.basebone = 55;
-	modelindex_player = self.modelindex;
-
-	setsize (self, VEC_HULL_MIN, VEC_HULL_MAX);
 	//self.scale = 1;
 	
-	self.view_ofs = '0 0 22';
+	self.view_ofs = '0 0 46';
+	self.view_ofs_guns = '0 0 24';
 
-	player_stand1 ();
+	player_passive ();
+//	player_spawn_pmodel ();
 	
 	if (deathmatch || coop)
 	{
@@ -961,7 +1017,6 @@ void() PlayerDeathThink =
 	self.button3 = 0;
 	respawn();
 };
-
 
 void() PlayerJump =
 {
@@ -1173,19 +1228,13 @@ void() PlayerPreThink =
 	if (self.deadflag == DEAD_DYING)
 		return;	// dying, so do nothing
 
-/*	if(self.pweaponmodel)
-	{
-		self.pweaponmodel.angles = self.angles; 
-		self.pweaponmodel.origin = self.origin;  // update for origin control
-	}*/
-
 	if (self.button2)
 	{
 		PlayerJump ();
 	}
 	else
 		self.flags = self.flags | FL_JUMPRELEASED;
-
+	
 // teleporters can force a non-moving pause time	
 	if (time < self.pausetime)
 		self.velocity = '0 0 0';
@@ -1282,14 +1331,13 @@ void() CheckPowerups =
 		//	self.flags &= ~FL_NOTARGET;
 			self.invisible_finished = 0;
 			self.invisible_time = 0;
+			self.alpha = 1;
 		}
 		
 	// use the eyes
-		self.frame = 0;
-		self.modelindex = modelindex_eyes;
+	//	self.frame = 0;
+		self.alpha = 0.3;
 	}
-	else
-		self.modelindex = modelindex_player;	// don't use eyes
 
 // invincibility
 	if (self.invincible_finished)
@@ -1443,6 +1491,29 @@ void() CheckPowerups =
 	}
 };
 
+void() armorRot = 
+{	
+	if (self.armorvalue > 100)
+	{	
+		self.armor_rotfinished = 1;
+	}
+
+	if (self.armor_rotfinished)
+	{
+		if (self.armorvalue <= 100)
+		{
+			self.armorvalue = 100;
+			self.armor_rotfinished = 0;
+			self.armor_rottime = 0;
+		}	
+
+		if (self.armor_rottime < time && self.armorvalue > 100)
+		{	
+			self.armorvalue = self.armorvalue - 1;
+			self.armor_rottime = time + 0.75;
+		}	
+	}
+}
 
 /*
 ================
@@ -1475,14 +1546,8 @@ void() PlayerPostThink =
 		return;
 	}
 
-// do weapon stuff
-/*	if(self.pweaponmodel)
-	{
-		self.pweaponmodel.angles = self.angles; 
-		self.pweaponmodel.origin = self.origin;  // update for origin control
-	}*/
-	
-	
+	player_Animate (); 
+
 // check to see if player landed and play landing sound	
 	if ((self.jump_flag < -300) && (self.flags & FL_ONGROUND) && (self.health > 0))
 	{
@@ -1496,7 +1561,8 @@ void() PlayerPostThink =
 		}
 		else
 			sound (self, CHAN_VOICE, "player/land.wav", 1, ATTN_NORM);
-
+		
+	//	Playerfall ();
 		self.jump_flag = 0;
 	}
 
@@ -1505,10 +1571,19 @@ void() PlayerPostThink =
 
 	CheckPowerups ();
 
+	if (skill > 2 && !deathmatch)
+		armorRot ();
+
+	if (deathmatch)
+		armorRot ();
+
 	W_WeaponZoom ();
 	W_WeaponFlashlight ();
 	W_WeaponThink ();
 	W_WeaponReload ();
+
+//	if ((self.jump_flag < -300) && (self.flags & FL_ONGROUND) && (self.health > 0))
+//		self.jump_flag = 0
 };	
 
 
@@ -1528,8 +1603,12 @@ void() ClientConnect =
 	if (intermission_running)
 		ExitIntermission ();
 
-	//if (cvar("enablecsqc"))
-	//bprint("client joined ", "\n");
+	//max_players++;
+
+	self.pmodel_name = infokey(self, "cl_player_model");
+
+	int edictnum = num_for_edict(self) - 1;
+	self.playerflags = 1<<edictnum;
 
 	PlayerTrail_Init ();
 };
@@ -1565,31 +1644,54 @@ ClientObituary
 called when a player dies
 ============
 */
+
+string gundeath1 [10] =
+{
+	"got humiliated by",
+	"was sniped by",
+	"chewed on",
+	"blasted into oblivion by",
+	"ate",
+	"was nailed into the wall by",
+	"choked on",
+	"was railed by",
+	"accepts",
+	"got sucked into"
+};
+
+string gundeath2 [10] =
+{
+	"'s shitty pistol",
+	"'s rifle",
+	"'s boomstick'",
+	"'s hyperblaster",
+	"'s delicious pineapple",
+	"'s nailgun",
+	"'s massive missile",
+	"'s railgun",
+	"'s shaft",
+	"'s dark hole"
+};
+
 void(entity targ, entity attacker) ClientObituary =
 {
 	local	float rnum;
 	local	string deathstring, deathstring2;
+	//string deathmsg;
 	rnum = random();
 
 	if (targ.classname == "player")
 	{
 		if (attacker.classname == "teledeath")
 		{
-			bprint (targ.netname);
-			bprint (" was telefragged by ");
-			bprint (attacker.owner.netname);
-			bprint ("\n");
-
+			bprint (targ.netname, " was telefragged by ", attacker.owner.netname, "\n");
 			attacker.owner.frags = attacker.owner.frags + 1;
 			return;
 		}
 
 		if (attacker.classname == "teledeath2")
 		{
-			bprint ("Satan's power deflects ");
-			bprint (targ.netname);
-			bprint ("'s telefrag\n");
-
+			bprint ("Satan's power deflects ", targ.netname, "'s telefrag", "\n");
 			targ.frags = targ.frags - 1;
 			return;
 		}
@@ -1600,22 +1702,19 @@ void(entity targ, entity attacker) ClientObituary =
 			{
 				// killed self
 				attacker.frags = attacker.frags - 1;
-				bprint (targ.netname);
 				
-				if (targ.weapon == 64 && targ.waterlevel > 1)
+				if (targ.weaponname == "weapon_lightningun" && targ.waterlevel > 1)
 				{
-					bprint (" discharges into the water.\n");
-					return;
+					deathstring = " discharges into the water";
+				//	return;
 				}
-				if (targ.weapon == IT_SUPER_NAILGUN)
-				{
-					bprint (" didn't listen to the scientist.\n");
-					return;
-				}
-				if (targ.weapon == IT_GRENADE_LAUNCHER)
-					bprint (" tries to put the pin back in\n");
+
+				if (targ.weaponname == "weapon_grenadelauncher")
+					deathstring = " tries to put the pin back in";
 				else
-					bprint (" becomes bored with life\n");
+					deathstring = " becomes bored with life";
+
+				bprint (targ.netname , deathstring ,"\n");
 				return;
 			}
 			else if ( (teamplay == 2) && (targ.team > 0)&&(targ.team == attacker.team) )
@@ -1628,8 +1727,8 @@ void(entity targ, entity attacker) ClientObituary =
 					deathstring = " gets a frag for the other team\n";
 				else
 					deathstring = " loses another friend\n";
-				bprint (attacker.netname);
-				bprint (deathstring);
+
+				bprint (attacker.netname , deathstring ,"\n");
 				attacker.frags = attacker.frags - 1;
 				return;
 			}
@@ -1637,75 +1736,12 @@ void(entity targ, entity attacker) ClientObituary =
 			{
 				attacker.frags = attacker.frags + 1;
 
-				rnum = attacker.weapon;
-				if (rnum == IT_AXE)
-				{
-					deathstring = " was fisted by ";
-					deathstring2 = "\n";
-				}
-				if (rnum == IT_SHOTGUN)
-				{
-					deathstring = " was pistoled by ";
-					deathstring2 = "'s boomstick\n";
-				}
-				if (rnum == IT_SUPER_SHOTGUN)
-				{
-					deathstring = " chewed on ";
-					deathstring2 = "'s boomstic\n";
-				}
-				if (rnum == IT_NAILGUN)
-				{
-					deathstring = " was punctured by ";
-					deathstring2 = "\n";
-				}
-				if (rnum == IT_SUPER_NAILGUN)
-				{
-					deathstring = " was pulverised by ";
-					deathstring2 = "\n";
-				}
-				if (rnum == IT_GRENADE_LAUNCHER)
-				{
-					deathstring = " eats ";
-					deathstring2 = "'s pineapple\n";
-					if (targ.health < -40)
-					{
-						deathstring = " was gibbed by ";
-						deathstring2 = "'s grenade\n";
-					}
-				}
-				if (rnum == IT_ROCKET_LAUNCHER)
-				{
-					deathstring = " rides ";
-					deathstring2 = "'s rocket\n";
-					if (targ.health < -40)
-					{
-						deathstring = " was gibbed by ";
-						deathstring2 = "'s rocket\n" ;
-					}
-				}
-				if (rnum == IT_LIGHTNING)
-				{
-					deathstring = " accepts ";
-					if (attacker.waterlevel > 1)
-						deathstring2 = "'s discharge\n";
-					else
-						deathstring2 = "'s shaft\n";
-				}
-			/*	if (rnum == IT_CHAINSAW)
-				{
-					deathstring = " was minced by ";
-					deathstring2 = "\n";
-				}
-				if (rnum == IT_BFG)
-				{
-					deathstring = " obliterated ";
-					deathstring2 = "\n";
-				}*/
+				float gunid = attacker.weaponid - 1;
 				
-				bprint (targ.netname);
-				bprint (deathstring);
-				bprint (attacker.netname);
-				bprint (deathstring2);
+				deathstring = gundeath1[gunid];
+				deathstring2 = gundeath2[gunid];
+
+				bprint (targ.netname, " ",deathstring, " ",attacker.netname, deathstring2, "\n" );
 			}
 			return;
 		}
@@ -1750,11 +1786,6 @@ void(entity targ, entity attacker) ClientObituary =
 			if (attacker.deathtype == "acid")
 			{
 				bprint (" was corroded\n");
-				return;
-			}
-			if (attacker.deathtype == "bfglaser")
-			{
-				bprint (" was burned to a crisp\n");
 				return;
 			}
 

@@ -6,7 +6,7 @@ player use weapons
 =====================================================================
 */
 
-void()	player_run;
+void()	player_passive;
 
 //.entity pweaponmodel;
 //entity gunpmodel;
@@ -219,6 +219,9 @@ void(float item) W_SetCurrentAmmo =
 	self.weaponframe = 0;
 	self.spawnmuzzleflash = 0;
 	self.weaponstate = WEAPON_ACTIVATE;
+	
+	string modelstr = strcat ("progs/player/", self.pmodel_name, "/player", ftos(self.weaponid), ".md5.info");
+	self.modelindex = getmodelindex(modelstr);
 
 	float alt = getweapon_light(self.weaponname);
 
@@ -281,7 +284,10 @@ W_ChangeWeapon
 ============
 */
 void() W_ChangeWeapon =
-{
+{	
+	if (self.weaponstate == WEAPON_FLASHUSE)
+		return;
+
     local float it, am, fl;
 
     float id = self.impulse;
@@ -312,12 +318,11 @@ void() W_ChangeWeapon =
     // set weapon, set ammo
     //
 
-	if (self.weaponstate == WEAPON_FLASHUSE)
-		return;
-
 	if (self.weaponid == id)
 		return;
-	
+
+	player_passive ();
+
     self.newweaponid = id;
 	self.oldweaponid = self.weaponid;
 	self.weaponstate = WEAPON_DEACTIVATE;
@@ -349,7 +354,7 @@ void() CycleWeaponCommand =
     while(1)
     {		
 	  	id++; 
-	  	if (id >= MAX_WEAPONS) // reset
+	  	if (id >= (MAX_WEAPONS + 1)) // reset
 			id = 1; 
 		//bprint (ftos(id), "\n");
 
@@ -363,6 +368,8 @@ void() CycleWeaponCommand =
 	
 	if (id == self.weaponid) // ended up on same gun
 		return;
+
+	player_passive ();
 
 	self.newweaponid = id;	
 	self.weaponstate = WEAPON_DEACTIVATE;
@@ -394,7 +401,7 @@ void() CycleWeaponReverseCommand =
     {		  
 	  	id--;	  
 	  	if (id <= 0) // reset
-			id = MAX_WEAPONS - 1; 
+			id = MAX_WEAPONS; 
 	  
         	//bprint (ftos(id), "\n");
 	  	nextweapon = getweaponinfo[id];
@@ -407,6 +414,8 @@ void() CycleWeaponReverseCommand =
 
 	if (id == self.weaponid) // ended up on same gun
 		return;
+
+	player_passive ();
 
     self.newweaponid = id;	
 	self.weaponstate = WEAPON_DEACTIVATE;
@@ -546,16 +555,20 @@ void() W_WeaponThink =
 			return;
 		}
 		
-		player_deactivate1();
+	//	player_deactivate1();
 		self.dspeed = time + 0.03;
 		return;
 	}
 
 	if (self.weaponstate == WEAPON_USED)
+	{
 		return;
+	}	
 
 	if (self.weaponstate == WEAPON_FLASHUSE)
+	{
 		return;
+	}	
 
 	if (W_WeaponUse())
 	{
@@ -651,7 +664,7 @@ void() W_WeaponThink =
 			self.weaponstate = WEAPON_DEACTIVATE;
 			self.newweaponid = W_BestWeapon();
 			self.attack_finished = TRUE;
-			player_run ();
+			player_passive ();
 			return;
 		}
 	}*/
@@ -764,7 +777,7 @@ void() W_WeaponReload =
 	if(self.attack_state == AS_MISSILE)
 		return;
 	
-	player_run();	
+	player_passive();	
 	self.weaponstate = WEAPON_RELOAD;
 	self.dspeed = 0;	
 };
@@ -933,6 +946,18 @@ void() CheatCommand =
 };
 
 
+void() _lightning_debug =
+{
+    if (deathmatch || coop)
+    {
+        return;
+    }
+	
+	self.ammo_coils = 221;
+
+    W_SetCurrentAmmo(TRUE);
+};
+
 /*
 ============
 ServerflagsCommand
@@ -1040,6 +1065,9 @@ void() ImpulseCommands =
 		case 29:
 			CheatCommand();
 			break;
+		case 122:
+			_lightning_debug();
+			break;
 		case 32:
 			ServerflagsCommand();
 			break;
@@ -1096,6 +1124,6 @@ void() WeaponChange =
 		default:
 			return;	
 	}		
-
+	
 	self.impulse = 0;
 };

@@ -149,7 +149,7 @@ void() walkmonster_start_go =
 	if (!self.yaw_speed)
 		self.yaw_speed = 20;
 
-	self.view_ofs = '0 0 57';
+	self.view_ofs = [0 , 0, self.maxs[2] - 4];
 
 	self.use = monster_use;
 	
@@ -250,7 +250,7 @@ void() flymonster_start_go =
 		self.yaw_speed = 10;
 	
 	//if (self.mins_z == 0)
-	self.view_ofs = '0 0 57';
+	self.view_ofs = [0 , 0, self.maxs[2] - 4];
 	
 	self.use = monster_use;
 

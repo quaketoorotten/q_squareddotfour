@@ -73,12 +73,6 @@ Monsters will continue walking towards the next target corner.
 */
 void() path_corner =
 {	
-	if (deathmatch)
-	{
-		remove (self);
-		return;
-	}
-
 	if (!self.targetname)
 		objerror ("monster_movetarget: no targetname");
 		
@@ -391,7 +385,7 @@ void(entity targ) FoundTarget =
 	}
 	
 	targ.show_hostile = time + 1;		// wake up other monsters	
-	targ.last_sighting = self.enemy.origin;
+	targ.last_sighting = self.enemy.origin + '0 0 24';
 	targ.trail_time = time;
 
 	oself = self;
@@ -827,14 +821,15 @@ void(float d) ai_charge =
 void(float t) CheckForCharge =
 {	
 	vector org = self.origin + '0 0 24';
+	vector enemy_org = self.enemy.origin + '0 0 24';
 // check for mad charge
 if (!enemy_vis)
 	return;
 if (time < self.attack_finished)
 	return;	
-if ( fabs(org_z - self.enemy.origin_z ) > 20)
+if ( fabs(org_z - enemy_org_z ) > 20)
 	return;		// too much height change
-if ( vlen (org - self.enemy.origin) < 80)
+if ( vlen (org - enemy_org) < 80)
 	return;		// use regular attack
 	
 // charge		
@@ -1032,7 +1027,7 @@ float() ai_checkattack =
 	enemy_vis = visible(self.enemy);
 	if (enemy_vis)
 	{
-		self.last_sighting = self.enemy.origin;
+		self.last_sighting = self.enemy.origin + '0 0 24';
 		self.search_time = time + 5;
 	}
 	else if (self.movetarget.classname == "combat_point") // if enemy isn't there anymore go back to guarding
@@ -1157,7 +1152,7 @@ void(float dist) ai_run =
 		//	ai_face ();
 		M_MoveToGoal (dist);
 		self.aiflags &= ~AI_LOST_SIGHT;
-		self.last_sighting = self.enemy.origin;
+		self.last_sighting = self.enemy.origin + '0 0 24';
 		self.trail_time = time;
 		return;
 	}

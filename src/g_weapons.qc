@@ -31,11 +31,7 @@ void() W_Precache =
 	precache_sound ("weapons/grenade.wav");
 	precache_sound ("weapons/sgun1.wav");
 
-	precache_sound("weapons/lashit.wav");
 	precache_sound("misc/lasfly.wav");
-	precache_sound("weapons/plasmagun/flight_01.wav");
-
-	precache_sound("weapons/rockfly.wav");
 
 	precache_sound("weapons/pistol/pistol_shot_02a.wav");
 	precache_sound("weapons/pistol/pistol_shot_03a.wav");
@@ -704,8 +700,31 @@ void(vector p1, vector p2, entity anchor, entity shooter, float dmg, float kick,
 	if (self.flags & FL_MONSTER)
 		name = "TE_BOLT_IMPACT_RED";
 
-	traceline (from, end, TRUE, ignore);
-		vector org2 = trace_endpos;
+	traceline (from, end, TRUE, shooter);
+	vector org2 = trace_endpos;
+
+	pointparticles (particleeffectnum(name), org2 + p2*-4, '0 0 0', 4);
+	SpawnImpact2(org2 + p2*-16, p2);
+
+	if (self.flags & FL_MONSTER)
+	{
+		WriteByte (MSG_MULTICAST, SVC_CGAMEPACKET); // visual for other clients
+		WriteByte (MSG_MULTICAST, TE_RAILTRAIL2);
+	}
+	else
+	{
+		WriteByte (MSG_MULTICAST, SVC_CGAMEPACKET); // visual for other clients
+		WriteByte (MSG_MULTICAST, TE_RAILTRAIL);
+	}
+	WriteCoord (MSG_MULTICAST, p1_x);
+	WriteCoord (MSG_MULTICAST, p1_y);
+	WriteCoord (MSG_MULTICAST, p1_z);
+
+	WriteCoord (MSG_MULTICAST, org2_x);
+	WriteCoord (MSG_MULTICAST, org2_y);
+	WriteCoord (MSG_MULTICAST, org2_z);
+
+	multicast('0 0 0', MULTICAST_ALL);
 
 	while(ignore)
 	{
@@ -729,32 +748,6 @@ void(vector p1, vector p2, entity anchor, entity shooter, float dmg, float kick,
 			T_Damage (trace_ent, shooter, trace_endpos, shooter, dmg, kick, mod);
 		}
 	}
-
-	if (self.classname == "monster_puncturer")
-		return;
-	
-	pointparticles (particleeffectnum(name), from + p2*-4, '0 0 0', 4);
-	SpawnImpact2(from + p2*-16, p2);
-
-	if (self.flags & FL_MONSTER)
-	{
-		WriteByte (MSG_MULTICAST, SVC_CGAMEPACKET); // visual for other clients
-		WriteByte (MSG_MULTICAST, TE_RAILTRAIL2);
-	}
-	else
-	{
-		WriteByte (MSG_MULTICAST, SVC_CGAMEPACKET); // visual for other clients
-		WriteByte (MSG_MULTICAST, TE_RAILTRAIL);
-	}
-	WriteCoord (MSG_MULTICAST, p1_x);
-	WriteCoord (MSG_MULTICAST, p1_y);
-	WriteCoord (MSG_MULTICAST, p1_z);
-
-	WriteCoord (MSG_MULTICAST, org2_x);
-	WriteCoord (MSG_MULTICAST, org2_y);
-	WriteCoord (MSG_MULTICAST, org2_z);
-
-	multicast('0 0 0', MULTICAST_ALL);
 };
 
 void(vector p1, vector p2, entity shooter, float dmg, float kick, float len) fireLightning = 
@@ -772,7 +765,7 @@ void(vector p1, vector p2, entity shooter, float dmg, float kick, float len) fir
 
 	traceline (from, end, 2, ignore);
 	vector org = trace_endpos - p2*4;
-	
+
 	if((trace_ent != ignore) && (trace_ent.takedamage) && (trace_ent.classname != "gib"))
 	{	
 		SpawnBlood (trace_ent, org, '0 0 0', kick * 2.5);
@@ -781,6 +774,7 @@ void(vector p1, vector p2, entity shooter, float dmg, float kick, float len) fir
 	}
 
 	self.solid = SOLID_SLIDEBOX;
+	SpawnImpact (org, p2);
 
 	msg_entity = self;
 	WriteByte (MSG_MULTICAST, SVC_CGAMEPACKET);
@@ -1083,7 +1077,7 @@ void() tbThink =
 
 	//	WriteEntity (MSG_MULTICAST, ent);
 
-		multicast('0 0 0', MULTICAST_ALL);
+	//	multicast('0 0 0', MULTICAST_ALL);
 	}
 
 	self.think = tbThink;
@@ -1283,7 +1277,7 @@ void(vector org, vector vec, vector right, vector up, float damage = 0) LaunchLa
 		missile.bounce = TRUE;
 		missile.speed = 1000;
 		missile.cnt = 0;
-		missile.dmg = 18;
+	//	missile.dmg = 18;
 	}
 		
 	else if(self.classname == "monster_gladiator")
@@ -1320,7 +1314,12 @@ void(vector org, vector vec, vector right, vector up, float damage = 0) LaunchLa
 	else if((self.flags & FL_FLY))
 		spd = 1000;
 	else if (self.flags & FL_CLIENT)
-		spd = 3000;
+	{
+		if (deathmatch)
+			spd = 1000;
+		else
+			spd = 3000;
+	}
 	else
 		spd = 600;
 	
@@ -1331,10 +1330,7 @@ void(vector org, vector vec, vector right, vector up, float damage = 0) LaunchLa
 	missile.old_velocity = missile.velocity;
 	missile.touch = Laser_Touch;
 
-	if (self.classname != "player")
-		sound(missile, CHAN_BODY, "misc/lasfly.wav", 1, ATTN_STATIC);
-	else
-		sound(missile, CHAN_BODY, "weapons/plasmagun/flight_01.wav", 1, ATTN_STATIC);
+	sound(missile, CHAN_BODY, "misc/lasfly.wav", 0.3, ATTN_STATIC);
 };
 
 void(vector org, vector dir, float speed = 1000, float slidebox = 0) launch_spike =
@@ -1933,6 +1929,12 @@ void() Flame_Burn =
 
 void() Flame_think = 
 {	
+	if ((self.nextthink2 < time) && self.nextthink2 > 0)
+	{
+		self.emiteffectnum = particleeffectnum("TE_FLAMETHROWER");
+		self.nextthink2 = 0;
+	}
+
 	if (self.ltime < time)
 	{
 		remove(self);
@@ -1942,7 +1944,7 @@ void() Flame_think =
 	self.think = Flame_think;
 	self.nextthink = time;
 
-	self.velocity[2] += 0.4;
+	self.velocity[2] += 1;
 }
 
 void(vector org, vector direction, float damage, float speed, float die ,string effect) Launch_Flame = 
@@ -1962,12 +1964,13 @@ void(vector org, vector direction, float damage, float speed, float die ,string 
 	tracer.ltime = time + die;
 	tracer.touch = Flame_Burn;
 	tracer.dmg = damage;
+	tracer.nextthink2 = time + 0.15;
 	
 	makevectors (direction);
 	tracer.velocity = direction * speed;
 //	tracer.velocity_z = 10;
 //	tracer.dspeed = kick;
-	tracer.emiteffectnum = particleeffectnum(effect);
+	tracer.emiteffectnum = particleeffectnum("TE_FLAMETHROWER1");
 
 	setmodel (tracer, "progs/muzzleflash.spr");  
 	setsize (tracer, '0 0 0', '0 0 0');

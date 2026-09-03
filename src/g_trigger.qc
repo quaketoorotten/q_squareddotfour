@@ -338,7 +338,7 @@ void(vector org) spawn_tfog =
 	WriteCoord (MSG_MULTICAST, org_x);
 	WriteCoord (MSG_MULTICAST, org_y);
 	WriteCoord (MSG_MULTICAST, org_z);
-	multicast (org, MULTICAST_PHS);
+	//multicast (org, MULTICAST_PHS);
 };
 
 void() tdeath_touch =

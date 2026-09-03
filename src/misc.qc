@@ -280,7 +280,7 @@ void() barrel_explode =
 	
 };
 
-void()	barrel_anim2 = [0, barrel_anim3   ] {self.velocity = '0 0 0'; self.nextthink = time + 0.5;};
+void()	barrel_anim2 = [0, barrel_anim3   ] {self.velocity = '0 0 0'; self.nextthink = time + 0.2;};
 void()	barrel_anim3 = [0, barrel_explode ] {};
 
 void() barrel_die = 
@@ -294,9 +294,9 @@ void() barrel_die =
 
 	self.movetype = MOVETYPE_WALK;
 	self.velocity = normalize(self.origin - self.enemy.origin) * 200;
-	self.emiteffectnum = (particleeffectnum("TE_ARCHVILEFLAME"));
+	self.emiteffectnum = (particleeffectnum("TE_ONFIRE"));
 	self.think = barrel_anim2;
-	self.nextthink = time + 0.5;
+	self.nextthink = time + 0.3;
 	self.th_die = SUB_Null;
 };
 
@@ -334,7 +334,7 @@ void() misc_explobox =
 	local float	oldz;
 	
 	if(!self.mdl) 
-		self.mdl = "progs/barrels.mdl";
+		self.mdl = "progs/misc/barrel.md3";
 
 	self.classname = "explo_box";
 	self.solid = SOLID_BBOX;
@@ -343,7 +343,7 @@ void() misc_explobox =
 	setmodel (self, self.mdl);
 	setsize (self, '-16 -16 0', '16 16 32');
    	setorigin (self, self.origin + '16 16 0');
-	self.scale = 0.8;
+	self.scale = 0.7;
 
 	if (!self.mass)
 		self.mass = 400;
@@ -378,7 +378,7 @@ Smaller exploding box, REGISTERED ONLY
 
 void() misc_explobox2 =
 {	
-	self.mdl = "progs/barrels.mdl";
+	self.mdl = "progs/misc/barrel.md3";
 	misc_explobox();
 };
 
@@ -450,42 +450,6 @@ void() trap_shooter =
 	self.nextthink = self.nextthink + self.wait + self.ltime;
 	self.think = shooter_think;
 };
-
-//===============================================================================
-
-/*QUAKED misc_teleporttrain (0 .5 .8) (-8 -8 -8) (8 8 8)
-This is used for the final bos
-*/
-void() misc_teleporttrain =
-{	
-	if (!self.speed)
-		self.speed = 100;
-	if (!self.target)
-		objerror ("func_train without a target");
-
-	self.cnt = 1;
-	self.solid = SOLID_NOT;
-	self.movetype = MOVETYPE_PUSH;
-	self.blocked = train_blocked;
-	self.use = train_use;
-	self.avelocity = '100 200 300';
-
-	self.noise = ("misc/null.wav");
-	precache_sound ("misc/null.wav");
-	self.noise1 = ("misc/null.wav");
-	precache_sound ("misc/null.wav");
-
-	precache_model2 ("progs/teleport.mdl");
-	setmodel (self, "progs/teleport.mdl");
-	setsize (self, self.mins , self.maxs);
-	setorigin (self, self.origin);
-
-// start trains on the second frame, to make sure their targets have had
-// a chance to spawn
-	self.nextthink = self.ltime + 0.1;
-	self.think = func_train_find;
-};
-
 
 //===============================================================================
 

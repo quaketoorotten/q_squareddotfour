@@ -85,7 +85,7 @@ void() W_FireShotgun =
 
 	if (deathmatch)
 	{
-		dmg = 8; 
+		dmg = 5; 
 		kick = 4;
 	}
 
@@ -95,7 +95,7 @@ void() W_FireShotgun =
 
   	self.punchangle = setvector (-4, crandom() * 0.3, crandom() * 0.3);
 
-	offset = setvector (0, 4, self.view_ofs[2] - 8);
+	offset = setvector (0, 0, self.view_ofs_guns[2] - 8);
 	makevectors(self.v_angle);
 	start = ProjectAim (self.origin, offset, v_forward, v_right);
 
@@ -106,6 +106,15 @@ void() W_FireShotgun =
 
 	if (self.powerups & IT_QUAD)
 		sound(self, CHAN_FIVE, "items/damage3.wav", 1, ATTN_NORM);
+
+	WriteByte (MSG_MULTICAST, SVC_CGAMEPACKET);
+	WriteByte (MSG_MULTICAST, TE_MP_MFLASH);
+	WriteCoord (MSG_MULTICAST, start_x);
+	WriteCoord (MSG_MULTICAST, start_y);
+	WriteCoord (MSG_MULTICAST, start_z);
+	WriteEntity (MSG_MULTICAST, self);
+
+	multicast('0 0 0', MULTICAST_ALL);
 
    // FirePallets (SSHOTGUN_PELLETS / 2, start,  dir, SSHOTGUN_HSPREAD*1.3, SHOTGUN_VSPREAD, dmg, kick, TE_GUNSHOT);
 };
@@ -135,7 +144,7 @@ void() W_FireMachineGun =
 
 	if (deathmatch)
 	{
-		dmg = 6; 
+		dmg = 7; 
 		kick = 0.5;
 	}
 
@@ -150,9 +159,9 @@ void() W_FireMachineGun =
 
 	self.punchangle = setvector (crandom() * 0.7, crandom() * 0.7, crandom() * 0.7);
 
-	offset = self.view_ofs;
+	offset = self.view_ofs_guns;
 	if (!self.button4)
-		offset = setvector (0, 4, self.view_ofs[2] - 8);
+		offset = setvector (0, 0, self.view_ofs_guns[2] - 8);
 
 	makevectors(self.v_angle);
 	start = ProjectAim (self.origin, offset, v_forward, v_right);
@@ -161,7 +170,7 @@ void() W_FireMachineGun =
     dir = aim(self, 10000);
 
 	float mod;
-	if (self.button4)
+	if (self.button4 && !deathmatch)
 		mod = 0.5;
 	else	
 		mod = 1;
@@ -171,7 +180,16 @@ void() W_FireMachineGun =
 	if (self.powerups & IT_QUAD)
 		sound(self, CHAN_FIVE, "items/damage3.wav", 1, ATTN_NORM);
 
-//	offset = setvector (12, 0, self.view_ofs[1] + 18);
+	WriteByte (MSG_MULTICAST, SVC_CGAMEPACKET);
+	WriteByte (MSG_MULTICAST, TE_MP_MFLASH);
+	WriteCoord (MSG_MULTICAST, start_x);
+	WriteCoord (MSG_MULTICAST, start_y);
+	WriteCoord (MSG_MULTICAST, start_z);
+	WriteEntity (MSG_MULTICAST, self);
+
+	multicast('0 0 0', MULTICAST_ALL);
+
+//	offset = setvector (12, 0, self.view_ofs_guns[2] + 18);
 //	makevectors(self.v_angle);
 
 //	_casing ("progs/shell.mdl", ProjectAim (self.origin, offset, v_forward, v_right), aim(self, 10000), self.velocity + v_right*-75 + v_up*(25 + random()*50));
@@ -233,7 +251,7 @@ void() W_FireNailGun =
 
 	if (deathmatch)
 	{
-		dmg = 4; 
+		dmg = 6; 
 		kick = 16;
 	}
 
@@ -241,9 +259,9 @@ void() W_FireNailGun =
 
 	makevectors(self.v_angle);
 	
-	offset = self.view_ofs;
+	offset = self.view_ofs_guns;
 	if (!self.button4)
-		offset = setvector (0, 6, self.view_ofs[2] - 4);
+		offset = setvector (4, 0, self.view_ofs_guns[2] - 4);
 
 	start = ProjectAim (self.origin, offset, v_forward, v_right);
 
@@ -267,6 +285,15 @@ void() W_FireNailGun =
 		sound(self, CHAN_FIVE, "items/damage3.wav", 1, ATTN_NORM);
 
 	CheckDodge (start, aim(self,1000), 2000);
+
+	WriteByte (MSG_MULTICAST, SVC_CGAMEPACKET);
+	WriteByte (MSG_MULTICAST, TE_MP_MFLASH);
+	WriteCoord (MSG_MULTICAST, start_x);
+	WriteCoord (MSG_MULTICAST, start_y);
+	WriteCoord (MSG_MULTICAST, start_z);
+	WriteEntity (MSG_MULTICAST, self);
+
+	multicast('0 0 0', MULTICAST_ALL);
 };
 
 //=============================================================================
@@ -292,12 +319,18 @@ void() T_MissileTouch =
         return;
     }
 
-    damg = 150 + random()*50;
+    damg = self.dmg + random()*50;
 //	bprint(ftos(damg), "\n");
-	
+	float dmg2;
+
+	if (deathmatch)
+		dmg2 = 120;
+	else
+		dmg2 = damg;
+
 	rocketimpact  ();
 	
-	T_RadiusDamage(self, self.owner, 150, 180, other);
+	T_RadiusDamage(self, self.owner, dmg2, 180, other);
 	
     self.origin = self.origin - 32* normalize(self.velocity);
 
@@ -359,9 +392,9 @@ void() W_FireRocket =
 
     // set missile speed
 
-//	offset = self.view_ofs;
+//	offset = self.view_ofs_guns;
 //	if (!self.button4)
-   		offset = setvector (0, 8, self.view_ofs[1] + 16);
+   		offset = setvector (4, 0, self.view_ofs_guns[2] + 16);
 	
 	makevectors(self.v_angle);
 	start = ProjectAim (self.origin, offset, v_forward, v_right);
@@ -378,6 +411,7 @@ void() W_FireRocket =
     missile.think = G_RocketFollowLaser;
     missile.nextthink = time;
 	missile.dspeed = time;
+	missile.dmg = 150;
 
     setmodel(missile, "progs/weapons/missile.md3");
 	missile.scale = 1.3;
@@ -387,6 +421,18 @@ void() W_FireRocket =
 
 	if (self.powerups & IT_QUAD)
 		sound(self, CHAN_FIVE, "items/damage3.wav", 1, ATTN_NORM);
+
+	if (deathmatch)
+		missile.dmg = 40;
+
+	WriteByte (MSG_MULTICAST, SVC_CGAMEPACKET);
+	WriteByte (MSG_MULTICAST, TE_MP_MFLASH);
+	WriteCoord (MSG_MULTICAST, start_x);
+	WriteCoord (MSG_MULTICAST, start_y);
+	WriteCoord (MSG_MULTICAST, start_z);
+	WriteEntity (MSG_MULTICAST, self);
+
+	multicast('0 0 0', MULTICAST_ALL);
 
 	// sound(missile, CHAN_BODY, "weapons/rockfly.wav", 1, ATTN_IDLE);
 };
@@ -504,7 +550,7 @@ void() G_UpdateSpot =
 
 void() GrenadeExplode =
 {
-    T_RadiusDamage(self, self.owner, 200, 250, world);
+    T_RadiusDamage(self, self.owner, self.dmg, self.dmg_rad, other);
 	
 	rocketimpact  ();
 	
@@ -524,7 +570,7 @@ void() GrenadeTouch =
 
     if (other.takedamage)
     {
-        T_RadiusDamage(self, self.owner, 200, 250, other);
+        T_RadiusDamage(self, self.owner, self.dmg, self.dmg_rad, other);
 		T_Damage(other, self, self.origin, self.owner, 125, 200);
 		rocketimpact  ();
 	
@@ -585,7 +631,7 @@ void() W_FireGrenade =
 	missile.traileffectnum = particleeffectnum ("EF_NADETRAIL");
 
     // set missile speed
-    offset = setvector (0, 8, self.view_ofs[1] + 8);
+    offset = setvector (4, 0, self.view_ofs_guns[2] + 8);
 	makevectors(self.v_angle);
 	start = ProjectAim (self.origin, offset, v_forward, v_right);
 	
@@ -598,6 +644,8 @@ void() W_FireGrenade =
 	missile.velocity += (crandom() * 10) * v_right; 
 
     missile.avelocity = '300 300 300';
+	missile.dmg = 200;
+	missile.dmg_rad = 250;
 
     missile.angles = vectoangles(missile.velocity);
 
@@ -617,6 +665,21 @@ void() W_FireGrenade =
 
 	if (self.powerups & IT_QUAD)
 		sound(self, CHAN_FIVE, "items/damage3.wav", 1, ATTN_NORM);
+
+	if (deathmatch)
+	{
+		missile.dmg = 120;
+		missile.dmg_rad = 160;		
+	}
+
+	WriteByte (MSG_MULTICAST, SVC_CGAMEPACKET);
+	WriteByte (MSG_MULTICAST, TE_MP_MFLASH);
+	WriteCoord (MSG_MULTICAST, start_x);
+	WriteCoord (MSG_MULTICAST, start_y);
+	WriteCoord (MSG_MULTICAST, start_z);
+	WriteEntity (MSG_MULTICAST, self);
+
+	multicast('0 0 0', MULTICAST_ALL);
 };
 
 float() RocketLauncherNoAmmo = 
@@ -660,24 +723,30 @@ W_FireHyper
 void() W_FireHyper = 
 {
 	local vector dir, offset, start;
+	float dmg = 18;
 
-	offset = setvector(0, 8, self.view_ofs[1] + 12);
+	offset = setvector(4, 0, self.view_ofs_guns[2] + 12);
 
 	makevectors(self.v_angle);
 	start = ProjectAim (self.origin, offset, v_forward, v_right);
-	
+//	bprint(ftos(start[2]), "\n");
+
 	self.effects = self.effects | EF_MUZZLEFLASH;
 
 	self.punchangle = setvector (crandom() * 0.7, crandom() * 0.7, crandom() * 0.7);
 	
 	dir = aim(self,10000);
 
+	if (deathmatch)
+	{
+		dmg = 4;
+	}
+
 	if (self.weaponname != "weapon_blaster")
 	{
 		self.currentammo -= 1;
 		self.savedammo_cells = self.currentammo;
 	}
-
 
 	//local float r = rint(random() * 2);
 	
@@ -700,7 +769,7 @@ void() W_FireHyper =
 		sound(self, CHAN_FIVE, "items/damage3.wav", 1, ATTN_NORM);
 
 	makevectors(self.v_angle);
-	LaunchLaser (start, dir, v_right * (crandom() * 15), v_up * (crandom() * 15));
+	LaunchLaser (start, dir, v_right * (crandom() * 15), v_up * (crandom() * 15), dmg);
 
 //	if (self.flags & FL_CLIENT)
 
@@ -708,6 +777,15 @@ void() W_FireHyper =
 		CheckDodge(start, dir, 9999);
 	else
 		CheckDodge(start, dir, 500);
+
+	WriteByte (MSG_MULTICAST, SVC_CGAMEPACKET);
+	WriteByte (MSG_MULTICAST, TE_MP_MFLASH);
+	WriteCoord (MSG_MULTICAST, start_x);
+	WriteCoord (MSG_MULTICAST, start_y);
+	WriteCoord (MSG_MULTICAST, start_z);
+	WriteEntity (MSG_MULTICAST, self);
+
+	multicast('0 0 0', MULTICAST_ALL);
 };
 
 /*
@@ -720,7 +798,7 @@ void() W_FireDisint =
 {
 	local vector dir, offset, start;
 
-	offset = setvector(24, 8, self.view_ofs[1] + 14);
+	offset = setvector(4, 0, self.view_ofs_guns[2] + 14);
 
 	makevectors(self.v_angle);
 	start = ProjectAim (self.origin, offset, v_forward, v_right);
@@ -736,6 +814,15 @@ void() W_FireDisint =
 
 //	if (self.flags & FL_CLIENT)
 	//	CheckDodge(start, dir, 100);
+
+	WriteByte (MSG_MULTICAST, SVC_CGAMEPACKET);
+	WriteByte (MSG_MULTICAST, TE_MP_MFLASH);
+	WriteCoord (MSG_MULTICAST, start_x);
+	WriteCoord (MSG_MULTICAST, start_y);
+	WriteCoord (MSG_MULTICAST, start_z);
+	WriteEntity (MSG_MULTICAST, self);
+
+	multicast('0 0 0', MULTICAST_ALL);
 };
 
 float() LGNoAmmo = 
@@ -756,6 +843,10 @@ void() W_FireLightning =
 {
 	local vector dir, offset, start;
 	local float cells;
+	float dmg = 11;
+
+	if (deathmatch)
+		dmg = 6;
 
 	if (self.waterlevel > 1)
 	{
@@ -782,15 +873,23 @@ void() W_FireLightning =
 	}
 	
 	makevectors(self.v_angle);
-	offset = setvector(0, 8, self.view_ofs[1] + 12);
+	offset = setvector(4, 0, self.view_ofs_guns[2] + 12);
 	start = ProjectAim (self.origin, offset, v_forward, v_right);
 	dir = aim(self,10000);
 
 	self.punchangle = setvector (crandom() * 0.2, crandom() * 0.2, crandom() * 0.2);
 	
 	self.effects = self.effects | EF_MUZZLEFLASH;
-	fireLightning(start, dir, self, 11, 5, 600);
-	
+	fireLightning(start, dir, self, dmg, 5, 600);
+
+	WriteByte (MSG_MULTICAST, SVC_CGAMEPACKET);
+	WriteByte (MSG_MULTICAST, TE_MP_MFLASH);
+	WriteCoord (MSG_MULTICAST, start_x);
+	WriteCoord (MSG_MULTICAST, start_y);
+	WriteCoord (MSG_MULTICAST, start_z);
+	WriteEntity (MSG_MULTICAST, self);
+
+	multicast('0 0 0', MULTICAST_ALL);
 };
 
 float() RailgunNoAmmo = 
@@ -813,8 +912,12 @@ W_FireRail
 void() W_FireRail = 
 {
 	local vector dir, offset, start;
+	float dmg = 175;
 
-	offset = setvector(0, 6, self.view_ofs[1] + 16);
+	if (deathmatch)
+		dmg = 100;
+
+	offset = setvector(8, 0, self.view_ofs_guns[2] + 16);
 
 	makevectors(self.v_angle);
 	start = ProjectAim (self.origin, offset, v_forward, v_right);
@@ -842,10 +945,19 @@ void() W_FireRail =
 	
 //	makevectors(self.v_angle);
 	self.solid = SOLID_BBOX;
-	fireRail (start, dir, self, self, 175, 50, 8192);
+	fireRail (start, dir, self, self, dmg, 50, 8192);
 	self.solid = SOLID_SLIDEBOX;
 
 //	vector end = start + dir * 8192;
+
+	WriteByte (MSG_MULTICAST, SVC_CGAMEPACKET);
+	WriteByte (MSG_MULTICAST, TE_MP_MFLASH);
+	WriteCoord (MSG_MULTICAST, start_x);
+	WriteCoord (MSG_MULTICAST, start_y);
+	WriteCoord (MSG_MULTICAST, start_z);
+	WriteEntity (MSG_MULTICAST, self);
+
+	multicast('0 0 0', MULTICAST_ALL);
 };
 
 /*
@@ -923,7 +1035,7 @@ void() W_WeaponFistNoise =
 void() player_blasteridle = 
 {	
 	//self.baseframe = 1;
-	player_run ();
+	player_passive ();
 	self.weaponframe = 40;
 	self.weaponstate = WEAPON_IDLE;
 	self.spawnmuzzleflash = 0;
@@ -964,7 +1076,6 @@ void() player_blaster2 = [self.frame, player_blaster2]
 
 	self.weaponstate = WEAPON_USED; 
 	SUB_AnimateWeapon (31, 39, player_blasteridle , 0.03, player_blasterfire);
-	player_run_unforced (1);
 };
 void() player_blaster1 = [self.frame, player_blaster1]
 {	
@@ -973,7 +1084,6 @@ void() player_blaster1 = [self.frame, player_blaster1]
 
 	self.weaponstate = WEAPON_USED; 
 	SUB_AnimateWeapon (21, 30, player_blasteridle , 0.03, player_blasterfire);
-	player_run_unforced (1);
 };
 
 void() player_blast = 
@@ -984,7 +1094,7 @@ void() player_blast =
 	local float r = rint(random());
 //	self.baseframe = 0;
 
-	CheckDodge2 (self.origin + self.view_ofs, aim(self,10000));
+	CheckDodge2 (self.origin + self.view_ofs_guns, aim(self,10000));
 //	self.baseframe = 4;
 	switch(r)
 	{
@@ -1008,7 +1118,7 @@ void() player_blaster_light = [self.frame, player_blaster_light ]
 	if (self.weaponframe >= 124 )
 	{	
 		self.spawnmuzzleflash = 0;
-		player_run ();
+		player_passive ();
 		self.weaponstate = WEAPON_IDLE;
 		self.weaponframe = 40;
 		return;
@@ -1027,7 +1137,7 @@ void() player_blaster_light = [self.frame, player_blaster_light ]
 
 /*	if (self.weaponframe == 33)
 	{	
-		offset = setvector (24, 4, self.view_ofs[1] + 16);
+		offset = setvector (24, 4, self.view_ofs_guns[2] + 16);
 		makevectors(self.v_angle);
 
 		_casing ("progs/shell2.mdl", ProjectAim (self.origin, offset, v_forward, v_right), aim(self, 10000),self.velocity + v_right*-75 + v_up*(25 + random()*25));
@@ -1038,7 +1148,7 @@ void() player_blaster_light = [self.frame, player_blaster_light ]
 	self.nextthink = time + 0.04;
 
 //	self.baseframe = 5;
-//	player_run_unforced ();
+//	player_Animate ();
 };
 
 float() get_noammo = {return 0;};
@@ -1090,7 +1200,7 @@ void() player_machinegun = [self.frame, player_machinegun ]
 			self.spawnmuzzleflash = 0;
 			self.weaponstate = WEAPON_IDLE;
 		//	self.baseframe = 1;
-			player_run ();
+			player_passive ();
 			self.weaponframe = 22;
 			return;
 		}
@@ -1107,7 +1217,7 @@ void() player_machinegun = [self.frame, player_machinegun ]
 
 	if (self.weaponframe == 18)
 	{	
-		CheckDodge2 (self.origin + self.view_ofs, aim(self,10000));
+		CheckDodge2 (self.origin + self.view_ofs_guns, aim(self,10000));
 		self.solid = SOLID_BBOX;
      	W_FireMachineGun();
 		self.spawnmuzzleflash = 1;
@@ -1127,7 +1237,7 @@ void() player_machinegun = [self.frame, player_machinegun ]
 		self.nextthink = time + 0.024;
 
 //	self.baseframe = 5;
-//	player_run_unforced ();
+//	player_Animate ();
 };
 
 void() player_machinegun_light = [self.frame, player_machinegun_light ]
@@ -1140,7 +1250,7 @@ void() player_machinegun_light = [self.frame, player_machinegun_light ]
 	if (self.weaponframe >= 125 )
 	{	
 		self.spawnmuzzleflash = 0;
-		player_run ();
+		player_passive ();
 		self.weaponstate = WEAPON_IDLE;
 		self.weaponframe = 22;
 		return;
@@ -1159,7 +1269,7 @@ void() player_machinegun_light = [self.frame, player_machinegun_light ]
 
 /*	if (self.weaponframe == 33)
 	{	
-		offset = setvector (24, 4, self.view_ofs[1] + 16);
+		offset = setvector (24, 4, self.view_ofs_guns[2] + 16);
 		makevectors(self.v_angle);
 
 		_casing ("progs/shell2.mdl", ProjectAim (self.origin, offset, v_forward, v_right), aim(self, 10000),self.velocity + v_right*-75 + v_up*(25 + random()*25));
@@ -1170,7 +1280,7 @@ void() player_machinegun_light = [self.frame, player_machinegun_light ]
 	self.nextthink = time + 0.04;
 
 //	self.baseframe = 5;
-//	player_run_unforced ();
+//	player_Animate ();
 };
 
 weapon_info_frames wf_machinegun = {17, '22 69 0', '109 111 0'}; // nice
@@ -1232,7 +1342,7 @@ void() player_shotg = [self.frame, player_shotg]
 	if (self.weaponframe >= 36 )
 	{	
 		self.spawnmuzzleflash = 0;
-		player_run ();
+		player_passive ();
 		self.weaponstate = WEAPON_IDLE;
 		self.weaponframe = 37;
 		return;
@@ -1240,7 +1350,7 @@ void() player_shotg = [self.frame, player_shotg]
 
 	if (self.weaponframe == 15)
 	{	
-		CheckDodge2 (self.origin + self.view_ofs, aim(self,10000));
+		CheckDodge2 (self.origin + self.view_ofs_guns, aim(self,10000));
 		self.solid = SOLID_BBOX;
      	W_FireShotgun();
 		self.savedammo_shells = self.currentammo;
@@ -1257,7 +1367,7 @@ void() player_shotg = [self.frame, player_shotg]
 
 /*	if (self.weaponframe == 33)
 	{	
-		offset = setvector (24, 4, self.view_ofs[1] + 16);
+		offset = setvector (24, 4, self.view_ofs_guns[2] + 16);
 		makevectors(self.v_angle);
 
 		_casing ("progs/shell2.mdl", ProjectAim (self.origin, offset, v_forward, v_right), aim(self, 10000),self.velocity + v_right*-75 + v_up*(25 + random()*25));
@@ -1340,7 +1450,7 @@ void() player_hyperb = [self.frame, player_hyperb]
 			self.weaponmodelpos_x = -2.2;
 			self.weaponmodelpos_z = 1;
 			self.weaponstate = WEAPON_IDLE;
-			player_run ();
+			player_passive ();
 			self.weaponframe = 26;
 			self.firerate = 0;
 			self.pissed = 0;
@@ -1354,7 +1464,7 @@ void() player_hyperb = [self.frame, player_hyperb]
 		sound(self, CHAN_RELOAD, "sounds_q4/weapons/hyperblaster/spin_up.wav", 1, ATTN_NORM);
 		self.pissed = 0;
 		self.firerate = 0;
-		CheckDodge2 (self.origin + self.view_ofs, aim(self,10000));
+		CheckDodge2 (self.origin + self.view_ofs_guns, aim(self,10000));
 	}
 	
 	if (self.weaponframe > 24 && self.button0)
@@ -1370,7 +1480,7 @@ void() player_hyperb = [self.frame, player_hyperb]
 		{	
 			self.spawnmuzzleflash = 1;
 			W_FireHyper ();
-			CheckDodge2 (self.origin + self.view_ofs, aim(self,10000));
+			CheckDodge2 (self.origin + self.view_ofs_guns, aim(self,10000));
 			self.firerate = time + 0.054;
 			self.weaponmodelpos_z -= 0.01;
 			self.weaponmodelpos_x -= 0.01;
@@ -1429,14 +1539,14 @@ void() player_grenl_ammo = [self.frame, player_grenl_ammo ]
 
 	if (self.weaponframe != 7 && self.weaponframe > 26)
 	{
-		CheckDodge2 (self.origin + self.view_ofs, aim(self,10000));
+		CheckDodge2 (self.origin + self.view_ofs_guns, aim(self,10000));
 		self.weaponframe = 7;
 	}
 	if (self.weaponframe >= 26)
 	{	
 		self.spawnmuzzleflash = 0;
 		self.weaponstate = WEAPON_IDLE;
-		player_run ();
+		player_passive ();
 		self.weaponframe = 27;
 		return;
 	}
@@ -1468,14 +1578,14 @@ void() player_grenl_noammo = [self.frame, player_grenl_noammo ]
 	
 	if (self.weaponframe != 86 && self.weaponframe < 87)
 	{
-		CheckDodge2 (self.origin + self.view_ofs, aim(self,10000));
+		CheckDodge2 (self.origin + self.view_ofs_guns, aim(self,10000));
 		self.weaponframe = 86;
 	}
 
 	if (self.weaponframe >= 105)
 	{		
 		self.weaponstate = WEAPON_IDLE; 
-		player_run ();
+		player_passive ();
 		self.weaponframe = 29;
 		self.spawnmuzzleflash = 0;
 		return;
@@ -1565,7 +1675,7 @@ void() nailgun_locking =
 	if (!visible(self.locked_enemy) && self.locked_enemy)
 		self.locked_enemy = world;
 
-	vector start = self.origin + self.view_ofs;
+	vector start = self.origin + self.view_ofs_guns;
 	vector src = start + v_forward*10;
 	
 	vector end= src + (8192 * aim(self,1000));
@@ -1625,7 +1735,7 @@ void() player_nail = [self.frame, player_nail]
 			self.firerate = 0;
 			sound(self, CHAN_RELOAD, "misc/null.wav", 1, ATTN_NORM);
 			self.weaponstate = WEAPON_IDLE; 
-			player_run ();
+			player_passive ();
 			self.weaponframe = 77;
 			return;
 		}
@@ -1638,7 +1748,7 @@ void() player_nail = [self.frame, player_nail]
 		self.weaponframe = 17;
 		self.firerate = 0;
 		sound(self, CHAN_RELOAD, "sounds_q4/weapons/nailgun/spin_up.wav", 1, ATTN_NORM);
-		CheckDodge2 (self.origin + self.view_ofs, aim(self,10000));
+		CheckDodge2 (self.origin + self.view_ofs_guns, aim(self,10000));
 	}
 
 	if (self.weaponframe != 30 && self.weaponframe > 76 && !self.button4)
@@ -1646,7 +1756,7 @@ void() player_nail = [self.frame, player_nail]
 		self.weaponframe = 30;
 		self.firerate = 0;
 		sound(self, CHAN_RELOAD, "sounds_q4/weapons/nailgun/spin_up.wav", 1, ATTN_NORM);
-		CheckDodge2 (self.origin + self.view_ofs, aim(self,10000));
+		CheckDodge2 (self.origin + self.view_ofs_guns, aim(self,10000));
 	}
 		
 	if (self.weaponmodelpos_x > -1.8 && self.weaponframe > 30)
@@ -1664,7 +1774,7 @@ void() player_nail = [self.frame, player_nail]
 		{	
 			self.spawnmuzzleflash = 1;
 			W_FireNailGun ();
-			CheckDodge2 (self.origin + self.view_ofs, aim(self,10000));
+			CheckDodge2 (self.origin + self.view_ofs_guns, aim(self,10000));
 			self.firerate = time + 0.13;
 		}
 		else
@@ -1739,7 +1849,7 @@ void() player_rl_ammo = [self.frame, player_rl_ammo ]
 		else
 			self.weaponstate = WEAPON_IDLE; 	
 
-		player_run ();
+		player_passive ();
 		self.weaponframe = 51;
 		return;
 
@@ -1748,16 +1858,16 @@ void() player_rl_ammo = [self.frame, player_rl_ammo ]
 	if (self.weaponframe == 10)
 		self.spawnmuzzleflash = 2;
 
-	if (self.weaponframe > 13 && self.button0 && self.currentammo == 0)
+	if (self.weaponframe >= 13 && self.button0 && self.currentammo == 0)
 	{	
 		self.spawnmuzzleflash = 0;
 		self.weaponstate = WEAPON_RELOAD; 
-		player_run ();
+		player_passive ();
 		self.weaponframe = 51;
 		return;
 	}
 
-	if (self.weaponframe > 13 && self.button0 && self.currentammo > 0)
+	if (self.weaponframe >= 13 && self.button0 && self.currentammo > 0)
 	{	
 		self.weaponframe = 9;
 		self.spawnmuzzleflash = 1;
@@ -1768,7 +1878,7 @@ void() player_rl_ammo = [self.frame, player_rl_ammo ]
 
 	if (self.weaponframe == 9)
 	{	
-		CheckDodge2 (self.origin + self.view_ofs, aim(self,10000));
+		CheckDodge2 (self.origin + self.view_ofs_guns, aim(self,10000));
 		self.effects = self.effects | EF_MUZZLEFLASH;
 		W_FireRocket();
 	}
@@ -1782,11 +1892,11 @@ void() player_rl_noammo = [self.frame, player_rl_noammo ]
 	self.weaponstate = WEAPON_USED;
 	//bprint(ftos(self.weaponframe), "\n");
 
-	if (!self.button0 && self.weaponframe > 67)
+	if (!self.button0 && self.weaponframe > 68)
 	{	
 		self.spawnmuzzleflash = 0;
 		self.weaponstate = WEAPON_IDLE; 
-		player_run ();
+		player_passive ();
 		self.weaponframe = 53;
 		return;
 	}
@@ -1794,10 +1904,21 @@ void() player_rl_noammo = [self.frame, player_rl_noammo ]
 	if (self.weaponframe == 64)
 		self.spawnmuzzleflash = 2;
 
-	if (self.weaponframe > 68 && self.button0 && self.currentammo > 0)
+	if (self.weaponframe >= 68 && self.button0)
 	{	
-		self.weaponframe = 63;
-		self.spawnmuzzleflash = 1;
+		if (self.currentammo > 0)
+		{
+			self.weaponframe = 63;
+			self.spawnmuzzleflash = 1;
+		}
+		else
+		{
+			self.weaponframe = 53;
+			self.spawnmuzzleflash = 0;
+			self.weaponstate = WEAPON_IDLE; 
+			player_passive ();
+			return;
+		}
 	}
 
 	if (self.weaponframe != 63 && self.weaponframe < 64)
@@ -1805,7 +1926,7 @@ void() player_rl_noammo = [self.frame, player_rl_noammo ]
 
 	if (self.weaponframe == 63)
 	{	
-		CheckDodge2 (self.origin + self.view_ofs, aim(self,10000));
+		CheckDodge2 (self.origin + self.view_ofs_guns, aim(self,10000));
 		self.effects = self.effects | EF_MUZZLEFLASH;
 		W_FireRocket();
 	}
@@ -1864,7 +1985,7 @@ void() player_rail = [self.frame, player_rail]
 	
 	if (self.weaponframe != 12 && self.weaponframe > 42)	
 	{
-		CheckDodge2 (self.origin + self.view_ofs, aim(self,10000));
+		CheckDodge2 (self.origin + self.view_ofs_guns, aim(self,10000));
 		self.weaponframe = 12;
 	}	
 	
@@ -1873,7 +1994,7 @@ void() player_rail = [self.frame, player_rail]
 		self.spawnmuzzleflash = 0;
 		self.weaponstate = WEAPON_IDLE;
 		self.weaponframe = 43;
-		player_run();
+		player_passive();
 		return;
 	}
 
@@ -1950,7 +2071,7 @@ void() player_lightninggun = [self.frame, player_lightninggun]
 			self.weaponstate = WEAPON_IDLE;
 			self.weaponframe = 22;
 			self.weaponmodelpos_x = 0;
-			player_run ();
+			player_passive ();
 			return;
 		}
 	}
@@ -2024,7 +2145,7 @@ void() player_dmg = [self.frame, player_dmg]
 	{
 		self.weaponstate = WEAPON_RELOAD;
 		self.weaponframe = 93;
-		player_run ();
+		player_passive ();
 	}
 
 	if (self.weaponframe == 9)

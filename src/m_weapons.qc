@@ -312,8 +312,10 @@ float fire_hit (vector aim, float damage, float kick)
 	vector		dir;
 	vector 		v;
 
+	vector sorg = self.origin;
+
 	//see if enemy is in range
-	dir = self.enemy.origin - self.origin;
+	dir = (self.enemy.origin + '0 0 24') - sorg;
 	range = vlen(dir);
 	if (range > aim[0])
 		return FALSE;
@@ -332,38 +334,39 @@ float fire_hit (vector aim, float damage, float kick)
 			aim[1] = self.enemy.maxs[0];
 	}
 
-	point = self.origin + range*normalize(dir);
+	point = sorg + range*normalize(dir);
 
-	traceline (self.origin, point, FALSE, self);
+	traceline (sorg, point, FALSE, self);
 	if (trace_fraction < 1)
 	{
 		if (!trace_ent.takedamage)
 			return FALSE;
 		// if it will hit any client/monster then hit the one we wanted to hit
 		if ((trace_ent.flags & FL_MONSTER) || (trace_ent.flags & FL_CLIENT))
-			trace_ent = self->enemy;
+			trace_ent = self.enemy;
 	}
 
 	AngleVectors(self.angles, forward, right, up);
-	point = self.origin + range*forward;
+	point = sorg + range*forward;
 	point += aim[1]*right;
 	point += aim[2]*up;
 //	dir = point = self.enemy.origin;
 
 	// do the damage
-	T_Damage (trace_ent, self, point, self, damage, kick);
+	T_Damage (trace_ent, self, point, self, damage, kick / 2);
 
 	if (!(trace_ent.flags & FL_MONSTER) && !(trace_ent.flags & FL_CLIENT))
 		return FALSE;
-
-	vector	size = (self.enemy.maxs - self.enemy.mins) * 0.5;
-	v = self.enemy.absmin + 0.5*size;
+	
+	vector	size = (trace_ent.maxs - trace_ent.mins);
+	v = trace_ent.absmin + 0.5*size;
 	v = v - point;
 	v = normalize(v);
-
-	self.enemy.velocity += kick*v;
-	if (self.enemy.velocity[2] > 0)
-		self.enemy.flags &= ~FL_ONGROUND;
+	
+	kick = kick * 4;
+	trace_ent.velocity += kick*v;
+	if (trace_ent.velocity[2] > 0)
+		trace_ent.flags &= ~FL_ONGROUND;
 	
 	SpawnBlood (trace_ent, trace_endpos, '0 0 0', damage);
 	return TRUE;

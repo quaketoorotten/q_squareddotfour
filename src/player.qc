@@ -20,119 +20,126 @@ PLAYER
 ==============================================================================
 */
 
-void() player_run;
+void() player_passive;
 
-/*void() player_firegun = 
+
+float AS_RESTING = 0;
+float AS_JUMPING = 1;
+float AS_FIRING  = 2;
+float AS_FALLING = 3;
+float AS_LANDING = 4;
+float AS_DEAD = 5;
+
+void() player_Animate = 
 {	
-	if (self.dcnt > time)
-		return;
-	
-	if (self.attack_state != AS_MISSILE && self.attack_state != AS_MELEE)
-		self.frame = 46;
+//	self.animation_state = AS_FIRING;
 
-	if (self.frame >= 53)
+	if (self.animinfo.state == AS_DEAD)
+		return;
+
+	if (self.health <= 0)
+		self.animinfo.state = AS_DEAD;
+
+	if (self.animinfo.state == AS_LANDING)
 	{
-		self.attack_state = AS_MELEE;
-		player_run_unforced ();
+		if (self.animinfo.land_time < time)
+			self.animinfo.state = AS_RESTING;
+		else
+		{
+			self.frame = 5;
+			return;
+		}
+	}
+
+	if (self.animinfo.cooldown > time)
+		return;
+
+	self.animinfo.cooldown = time + 0.1;
+
+	if (self.animinfo.state == AS_LANDING)
+	{
+		if (self.animinfo.land_time < time)
+			self.animinfo.state = AS_RESTING;
+		else
+		{
+			self.frame = 5;
+			return;
+		}
+	}
+
+	if (self.animinfo.state == AS_JUMPING)
+	{
+		if (self.animinfo.jump_time < time)
+		{	
+			if (self.flags & FL_ONGROUND)
+			{
+				self.animinfo.cooldown = 0;
+				self.animinfo.state = AS_LANDING;
+			}	
+
+			else if (self.velocity_z < -200)
+			{
+				self.animinfo.cooldown = 0;
+				self.animinfo.state = AS_FALLING;
+			}	
+
+			else
+				self.animinfo.state = AS_RESTING;
+		}
+			
+		else
+		{
+			self.frame = 3;
+			return;
+		}
+	}
+
+	if (self.animinfo.state == AS_FALLING)
+	{	
+		if ((self.flags & FL_ONGROUND))
+		{	
+			self.animinfo.cooldown = 0;
+			self.animinfo.state = AS_LANDING;
+			self.frame = 5;
+			self.animinfo.land_time = time + 0.3;
+		}	
+		else
+			self.frame = 4;
+
 		return;
 	}
-	
-	self.attack_state = AS_MISSILE;
-	self.frame++;
-	self.dcnt = time + 0.1;
-};
 
-void() player_firegunloop = 
-{	
-	if (self.attack_state == AS_MELEE)
-		return;
-
-	if (self.dcnt > time)
-		return;
-
-	if (self.attack_state != AS_MISSILE)
-		self.frame = 46;
-
-	if (self.frame >= 48)
-	{
-		self.frame = 46;
+	if (self.velocity_z < -200)
+	{	
+		self.animinfo.state = AS_FALLING;
+		self.frame = 4;
 		return;
 	}
-	
-	self.attack_state = AS_MISSILE;
-	self.frame++;
-	self.dcnt = time + 0.1;
-};*/
 
-void(float fr) player_run_unforced = 
-{	
-	self.baseframe = fr;
-	if (self.velocity_x || self.velocity_y)
-		self.frame = 2;
-	else
-		self.frame = 1;
+	if (self.velocity_z > 100)
+	{	
+		self.animinfo.state = AS_JUMPING;
+		self.frame = 3;
+		self.animinfo.jump_time = time + 0.3;
+		return;
+	}
 
-	self.walkframe = 0;
+	//self.baseframe = fr;
+
+	if (self.velocity_z == 0)
+	{
+		if (fabs(self.velocity_x) > 20 || fabs(self.velocity_y) > 20)
+			self.frame = 2;
+		else
+			self.frame = 1;
+	}
+
+
+	self.animinfo.state = AS_RESTING;
+	//self.walkframe = 0;
 }
 
-void()	player_stand1 =[	self.frame,	player_stand1	]
-{	
-	self.attack_state = AS_STRAIGHT;
-
-	if (self.button2 && self.attack_state != AS_MISSILE && self.count == 0)
-	{	
-	//	self.baseframe = 3;
-		self.walkframe = 3;
-		self.count = time + frameduration(player_slimy_transfer, 3);
-	}
-
-	if (self.count < time)
-	{	
-		self.baseframe = 1;
-		self.walkframe = 1;
-		self.count = 0;
-	}
-
-	if (self.velocity_x || self.velocity_y)
-	{
-		self.walkframe=0;
-		player_run();
-		return;
-	}
-
-	self.frame = self.walkframe;
-	self.nextthink = time + 0.03;
-};
-
-void()	player_run =[	self.frame,	player_run	]
-{
-	self.baseframe = 1;
-	self.attack_state = AS_STRAIGHT;
-//	bprint(ftos(self.baseframe), "\n");
-	if (self.button2 && self.attack_state != AS_MISSILE  && self.count == 0)
-	{	
-	//	self.baseframe = 3;
-		self.walkframe = 3;
-		self.count = time + frameduration(player_slimy_transfer, 3);
-	}
-
-	if (self.count < time)
-	{	
-		self.baseframe = 1;
-		self.walkframe = 2;
-		self.count = 0;
-	}
-
-	if (!self.velocity_x && !self.velocity_y)
-	{
-		self.walkframe=0;
-		player_stand1();
-		return;
-	}
-
-	self.frame = self.walkframe;
-	self.nextthink = time + 0.03;
-};
+void()	player_passive =[	self.frame,	player_passive	] {	self.spawnmuzzleflash = 0;};
 
 //============================================================================
 
@@ -214,49 +221,15 @@ local float		rs;
 	return;
 };
 
-void()	player_pain1 =	[	53,	player_pain2	] {};
-void()	player_pain2 =	[	54,	player_pain3	] {};
-void()	player_pain3 =	[	55,	player_pain4	] {};
-void()	player_pain4 =	[	56,	player_pain5	] {};
-void()	player_pain5 =	[	57,	player_run 		] {};
-
-void()	player_axpain1 =	[	58,	player_axpain2	] {};
-void()	player_axpain2 =	[	59,	player_axpain3	] {};
-void()	player_axpain3 =	[	60,	player_axpain4	] {};
-void()	player_axpain4 =	[	61,	player_run		] {};
-
-void()	player_painb1 =	[	62,	player_pain2	] {};
-void()	player_painb2 =	[	63,	player_pain3	] {};
-void()	player_painb3 =	[	64,	player_pain4	] {};
-void()	player_painb4 =	[	65,	player_run		] {};
-
-void()	player_deactivate1 =	[	62,	player_deactivate2] {};
-void()	player_deactivate2 =	[	63,	player_deactivate3] {};
-void()	player_deactivate3 =	[	64,	player_deactivate4] {};
-void()	player_deactivate4 =	[	65,	player_run		] {};
+//void()	player_deactivate1 = [	62,	player_passive] {};
 
 void(entity attacker, float damage, float MOD) player_pain =
-{	
-	if (self.invisible_finished > time)
-		return;		// eyes don't have pain frames
-		
+{			
 	local float n;
 	
 	n = floor((random()*10) % 2);
 	
 	PainSound();
-
-	if (self.weaponstate == WEAPON_ACTIVATE 
-		|| self.weaponstate == WEAPON_DEACTIVATE 
-		|| self.weaponstate == WEAPON_USED || self.weaponstate == WEAPON_FLASHUSE)
-		return;
-
-	if (n == 0)
-		player_axpain1 ();
-	else if (n == 2)
-		player_pain1 ();
-	else
-		player_painb1 ();
 };
 
 void() DeathBubblesSpawn =
@@ -364,9 +337,9 @@ vector (vector vel) ClipGibVelocity =
 	else if (vel_y > 300)
 		vel_y = 300;
 	if (vel_z < 200)
-        	vel_z = 200;    // always some upwards
-    	else if (vel_z > 500)
-        	vel_z = 500;
+        vel_z = 200;    // always some upwards
+    else if (vel_z > 500)
+        vel_z = 500;
 
 	return vel;
 };
@@ -374,7 +347,7 @@ vector (vector vel) ClipGibVelocity =
 void(string gibname, float dm) ThrowHeadPlayer =
 {
 	setmodel (self, gibname);
-	self.frame = 0;
+	self.frame = 1;
 	self.nextthink = -1;
 	self.movetype = MOVETYPE_BOUNCE;
 	self.takedamage = DAMAGE_NO;
@@ -383,7 +356,7 @@ void(string gibname, float dm) ThrowHeadPlayer =
 	setsize (self, '-16 -16 0', '16 16 56');
 	self.velocity = self.velocity + VelocityForDamage (dm);
 	self.velocity = ClipGibVelocity(self.velocity);
-	self.origin_z = self.origin_z - 24;
+	self.origin_z = self.origin_z + 24;
 	self.flags = self.flags - (self.flags & FL_ONGROUND);
 	self.avelocity = crandom() * '0 600 0';
 };
@@ -391,10 +364,20 @@ void(string gibname, float dm) ThrowHeadPlayer =
 void() GibPlayer =
 {	
 	self.deadflag = DEAD_DEAD;
-	ThrowHeadPlayer ("progs/h_player.mdl", self.health);
-	ThrowGib ("progs/gib1.mdl", self.health);
-	ThrowGib ("progs/gib2.mdl", self.health);
-	ThrowGib ("progs/gib3.mdl", self.health);
+	ThrowHeadPlayer ("progs/brain.mdl", self.health);
+
+	ThrowGib ("progs/pork1.mdl", self.health);
+
+	for(float i = 0; i < 2; i++)
+		ThrowGib ("progs/pork2.mdl", self.health);
+
+	for(float i = 0; i < 2; i++)
+		ThrowGib ("progs/pork3.mdl", self.health);
+
+	for(float i = 0; i < 2; i++)
+		ThrowGib ("progs/pork4.mdl", self.health);
+
+	ThrowGib ("progs/pork5.mdl", self.health);
 
 	if (damage_attacker.classname == "teledeath")
 	{
@@ -414,99 +397,150 @@ void() GibPlayer =
 		sound (self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NONE);
 };
 
+void() weapon_items [8] = // because im stupid and didnt name the items like their weaponnames
+{
+	weapon_supershotgun,
+	weapon_hyperblaster,
+	weapon_grenadelauncher,
+	weapon_nailgun2,
+	weapon_rocketlauncher2,
+	weapon_railgun,
+	weapon_lightning,
+	weapon_dmg
+};
+
 void() PlayerDie =
 {
-	local	float	i;
+	player_passive ();
+	self.powerups = self.powerups - (self.powerups & (IT_INVISIBILITY | IT_SUIT | IT_QUAD) );
 
-	player_run ();
-	self.items = self.items - (self.items & IT_INVISIBILITY);
 	self.invisible_finished = 0;	// don't die as eyes
 	self.invincible_finished = 0;
 	self.super_damage_finished = 0;
 	self.radsuit_finished = 0;
+	
 	self.oldweaponid = self.weaponid;
 	self.weaponstate = WEAPON_DOWN;
-	self.modelindex = modelindex_player;	// don't use eyes
+	self.armor_rottime = 0;
+	self.megahealth_finished = 0;
+	self.animinfo.land_time = 0;
+	self.animinfo.jump_time = 0;
+	//self.items = 0;
+	
 	self.spawnmuzzleflash = 0;
 	self.pos1 = 0;
-	
-//	if (self.pweaponmodel.model)
-//		self.pweaponmodel.model = "";
+
+	if (self.flash_active)
+		activate_flashlight ();
+
+	self.flash_active = 0;
 
 	if (deathmatch || coop)
-		DropBackpack();
+	{	
+		if (self.oldweaponid > 2)
+			DropItem (weapon_items[self.oldweaponid - 3]);
+	}	
 	
 	sound(self, CHAN_RELOAD, "misc/null.wav", 1, ATTN_NORM);
 	sound(self, CHAN_WEAPON, "misc/null.wav", 1, ATTN_NORM);
-//	self.weaponmodel="";
-	self.view_ofs = '0 0 -8';
+
+	self.view_ofs = '0 0 16';
 	self.deadflag = DEAD_DYING;
 	self.solid = SOLID_NOT;
 	self.flags = self.flags - (self.flags & FL_ONGROUND);
 	self.movetype = MOVETYPE_TOSS;
 	self.oldfov = 0;
 	self.fov = 0;
-	if (self.velocity_z < 10)
-		self.velocity_z = self.velocity_z + random()*300;
+	self.alpha = 1;
 
-	if (self.health < -40)
-	{	
-		//self.weaponstate = WEAPON_DOWN;
+	if (self.health < -30)
+	{
 		GibPlayer ();
 		return;
 	}
+
+	if (self.velocity_z < 10)
+		self.velocity_z = self.velocity_z + random()*300;
+	else
+		self.velocity_z = self.velocity_z + random()*50;
 
 	DeathSound();
 	
 	self.angles_x = 0;
 	self.angles_z = 0;
-	
-	i = cvar("temp1");
-	if (!i)
-		i = 1 + floor(random()*3);
-	
-	if (i == 1)
-		player_diea1();
-	else if (i == 2)
-		player_dieb1();
-	else 
-		player_diec1();
 
+	vector dir = self.dmg_inflictor.origin - self.origin;
+	dir = normalize(dir);
+
+	if (self.dmg_inflictor.owner == self)
+	{	
+	//	bprint("???", "\n");
+		if (random() <= 0.5)
+		{
+			player_diea1 ();
+			self.velocity += dir * -200;
+		}	
+		else
+		{
+			player_diec1 ();
+			self.velocity += dir * 200;
+		}
+		self.flags &= ~FL_ONGROUND;
+		return;
+	}
+
+	if (infront (self.dmg_inflictor))
+	{
+		player_diea1 ();
+		self.velocity += dir * -200;
+		self.flags &= ~FL_ONGROUND;
+	}	
+	else
+	{
+		if (random() <= 0.5)
+			player_dieb1 ();
+		else
+			player_diec1 ();
+		self.velocity += dir * 200;
+		self.flags &= ~FL_ONGROUND;
+	}
 };
 
 void() set_suicide_frame =
 {	// used by klill command and diconnect command
-	if (self.model != "progs/player.mdl")
+	if (self.model != "progs/player/player.md5.info")
 		return;	// allready gibbed
-	self.frame = 197;
+	self.frame = 1;
 	self.solid = SOLID_NOT;
 	self.movetype = MOVETYPE_TOSS;
 	self.deadflag = DEAD_DEAD;
 	self.nextthink = -1;
+
+	PlayerDie ();
 };
 
 
-void()	player_diea1	=	[	178,	player_diea2	] {};
-void()	player_diea2	=	[	179,	player_diea3	] {};
-void()	player_diea3	=	[	180,	player_diea4	] {};
-void()	player_diea4	=	[	181,	player_diea5	] {};
-void()	player_diea5	=	[	182,	player_diea6	] {};
-void()	player_diea6	=	[	183,	player_diea6	] {PlayerDead();};
+void()	player_diea1	=	[	6,			player_diea2	] {};
+void()	player_diea2	=	[	self.frame,	player_diea3	] {};
+void()	player_diea3	=	[	self.frame,	player_diea4	] {};
+void()	player_diea4	=	[	self.frame,	player_diea5	] {};
+void()	player_diea5	=	[	self.frame,	player_diea6	] {};
+void()	player_diea6	=	[	self.frame,	player_diea6	] {PlayerDead();};
 
-void()	player_dieb1	=	[	184,	player_dieb2	] {};
-void()	player_dieb2	=	[	185,	player_dieb3	] {};
-void()	player_dieb3	=	[	186,	player_dieb4	] {};
-void()	player_dieb4	=	[	187,	player_dieb5	] {};
-void()	player_dieb5	=	[	188,	player_dieb6	] {};
-void()	player_dieb6	=	[	189,	player_dieb6	] {PlayerDead();};
+void()	player_dieb1	=	[	7,			player_dieb2	] {};
+void()	player_dieb2	=	[	self.frame,	player_dieb3	] {};
+void()	player_dieb3	=	[	self.frame,	player_dieb4	] {};
+void()	player_dieb4	=	[	self.frame,	player_dieb5	] {};
+void()	player_dieb5	=	[	self.frame,	player_dieb6	] {};
+void()	player_dieb6	=	[	self.frame,	player_dieb6	] {PlayerDead();};
 
-void()	player_diec1	=	[	190,	player_diec2	] {};
-void()	player_diec2	=	[	191,	player_diec3	] {};
-void()	player_diec3	=	[	192,	player_diec4	] {};
-void()	player_diec4	=	[	193,	player_diec5	] {};
-void()	player_diec5	=	[	194,	player_diec6	] {};
-void()	player_diec6	=	[	195,	player_diec7	] {};
-void()	player_diec7	=	[	196,	player_diec8	] {};
-void()	player_diec8	=	[	197,	player_diec8	] {PlayerDead();};
+void()	player_diec1	=	[	8,			player_diec2	] {};
+void()	player_diec2	=	[	self.frame,	player_diec3	] {};
+void()	player_diec3	=	[	self.frame,	player_diec4	] {};
+void()	player_diec4	=	[	self.frame,	player_diec5	] {};
+void()	player_diec5	=	[	self.frame,	player_diec6	] {};
+void()	player_diec6	=	[	self.frame,	player_diec7	] {};
+void()	player_diec7	=	[	self.frame,	player_diec8	] {};
+void()	player_diec8	=	[	self.frame,	player_diec8	] {PlayerDead();};
 
 

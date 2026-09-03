@@ -33,8 +33,10 @@
 
 .float megahealth_finished;
 .float megahealth_time;
-.float artifact_healfinished;
 .float artifact_healtime;
+.float armor_rottime;
+.float armor_rotfinished;
+//.float armor_rotstart;
 
 .float mass;
 .float hitmarker_time;
@@ -134,8 +136,9 @@ float FL_RESURRECTED		= 32768;
 float FL_LEAP				= 65536;
 float FL_TACTICAL			= 131072;
 
-float MAX_WEAPONS				= 11;
+float MAX_WEAPONS				= 10;
 
+float TE_MP_MFLASH				= 86;
 float PICKUP					= 88;
 float HITMARKER					= 89;
 float THUNDER_ENDPOS			= 90;
@@ -247,3 +250,7 @@ float DMGTYPE_LTNG = 2;
 float DMGTYPE_RAIL = 3;
 float DMGTYPE_DMG = 4;
 float DMGTYPE_TOX = 5;
+
+.int playerflags;
+int max_players;
+.int max_player_interaction;

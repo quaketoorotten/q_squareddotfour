@@ -4,14 +4,44 @@ BE .8 .3 .4 IN COLOR */
 
 
 void() SUB_regen =
-{
-	self.model = self.mdl;		// restore original model
-	self.solid = SOLID_TRIGGER;	// allow it to be touched again
+{	
+	if (self.classname == "dropped_item")
+	{
+		remove(self);
+		return;
+	}	
+	//bprint("???", "\n");
+	if (self.pissed == 1)
+	{	
+	//	bprint ("???", "\n");
+		self.nextthink = time + 0.1;	
+		self.think = self.think1;
+		self.pissed = 0;
+	}
+	else
+	{
+		self.model = self.mdl;		// restore original model
+		self.solid = SOLID_TRIGGER;	// allow it to be touched again
+	}
+
 	sound (self, CHAN_VOICE, "sounds_q4/mp/misc/item_respawn.wav", 1, ATTN_NORM);	// play respawn sound
 	setorigin (self, self.origin);
+
+	WriteByte (MSG_MULTICAST, SVC_TEMPENTITY);
+	WriteByte (MSG_MULTICAST, TE_TELEPORT);
+	WriteCoord (MSG_MULTICAST, self.origin_x);
+	WriteCoord (MSG_MULTICAST, self.origin_y);
+	WriteCoord (MSG_MULTICAST, self.origin_z);
+	//multicast (org, MULTICAST_PHS);
 };
 
-
+void() grow_client_crosshair =
+{
+	msg_entity = other;
+	WriteByte (MSG_MULTICAST, SVC_CGAMEPACKET);
+	WriteByte (MSG_MULTICAST, PICKUP);
+	multicast ('0 0 0', MULTICAST_ONE);
+};
 
 /*QUAKED noclass (0 0 0) (-8 -8 -8) (8 8 8)
 prints a warning message when spawned
@@ -24,14 +54,6 @@ void() noclass =
 	remove (self);
 };
 
-void() grow_client_crosshair =
-{
-	msg_entity = other;
-	WriteByte (MSG_MULTICAST, SVC_CGAMEPACKET);
-	WriteByte (MSG_MULTICAST, PICKUP);
-	multicast ('0 0 0', MULTICAST_ONE);
-}
-
 /*
 ============
 PlaceItem
@@ -39,6 +61,15 @@ PlaceItem
 plants the object on the floor
 ============
 */
+
+float() coop_hide =
+{	
+	if (other.playerflags & self.playerflags)	
+		return 0;
+	//bprint(ftos(other.playerflags), "\n");
+	return 1;
+}
+
 void() PlaceItem =
 {
 	local float	oldz;
@@ -49,6 +80,11 @@ void() PlaceItem =
 	self.movetype = MOVETYPE_TOSS;	
 	self.velocity = '0 0 0';
 	self.origin_z = self.origin_z + 6;
+	self.max_player_interaction = 0;
+	self.playerflags = 0;
+
+	if (self.pissed != 1)
+		self.pissed = 0;
 	
 	oldz = self.origin_z;
 
@@ -64,11 +100,14 @@ void() PlaceItem =
 		return;
 	}
 
-	if (self.think1)
+	if (self.think1 && !self.pissed)
 	{
 		self.nextthink = time + 0.2;	
 		self.think = self.think1;
 	}
+
+	if (coop)
+		self.customizeentityforclient = coop_hide;
 };
 
 /*
@@ -96,14 +135,48 @@ void(void() item) DropItem =
 	en.solid = SOLID_TRIGGER;
 	
 	en.think = item;
-	en.classname = "dropped_item";
 	en.nextthink = time;
 
 	en.velocity = self.velocity;
 	en.flags &= ~FL_ONGROUND;
 
 	en.movetype = MOVETYPE_TOSS;
-}
+	en.classname = "dropped_item";
+};
+
+void() genericItem_despawn =
+{
+	if (coop == 1)
+	{
+		self.playerflags |= other.playerflags;
+		self.max_player_interaction += 1;
+	//	self.nodrawtoclient = other;
+
+		if (self.max_player_interaction == 1)
+		{
+			activator = other;
+			SUB_UseTargets();				// fire all targets / killtargets
+			return;
+		}	
+
+		if (self.max_player_interaction < max_players)
+			return;
+	}
+
+// remove it in single player, or setup for respawning in deathmatch
+	self.model = string_null;
+	self.solid = SOLID_NOT;
+	if (deathmatch == 1)
+		self.nextthink = time + 30;
+	self.think = SUB_regen;
+
+	if (coop == 1)
+		return;
+
+	activator = other;
+	SUB_UseTargets();				// fire all targets / killtargets
+	return;
+};
 
 /*
 =========================================================================
@@ -130,6 +203,7 @@ float (entity e, float healamount, float ignore) T_Heal =
 		
 	if (e.health > 200)
 		e.health = 200;
+
 	return 1;
 };
 
@@ -207,34 +281,41 @@ void() item_precaches =
 
 	precache_sound ("sounds_q4/mp/pickups/regen.wav");
 
-	precache_sound ("items/megasphere_pickup.wav");
+	precache_sound ("sounds_q4/mp/pickups/n_health.wav");
 }
 
-
-void() item_health =
-{	
-	self.touch = health_touch;
-
-	if (self.spawnflags & H_ROTTEN)
+void() rot_health_decide =
+{
+	if (skill == 3 && !deathmatch)
+	{
+		setmodel(self, "progs/items/health/health.md3");
+		self.noise = "sounds_q4/mp/pickups/l_health.wav";
+		self.healamount = 5;
+		self.skin = 3;
+		self.healtype = 2;
+		self.scale = 1;
+	}
+	else
 	{
 		setmodel(self, "progs/items/health/health.md3");
 		self.noise = "sounds_q4/mp/pickups/l_health.wav";
 		self.healamount = 15;
 		self.healtype = 0;
-		self.scale = 1.2;
-		setsize (self, '-16 -16 0', '16 16 56');
 	}
-	else
-	if (self.spawnflags & H_MEGA)
+
+	self.mdl = self.model;
+	setsize (self, '-16 -16 0', '16 16 56');
+	self.think1 = SUB_Null;
+};
+
+void() normal_health_decide =
+{
+	if (skill == 3 && !deathmatch)
 	{
 		setmodel(self, "progs/items/health/health.md3");
-		self.noise = "items/megasphere_pickup.wav";
-		self.healamount = 100;
-		self.healtype = 2;
-		self.skin = 2;
-		self.scale = 1.5;
-		self.traileffectnum = (particleeffectnum("EF_POWERUP_LIGHT"));
-		setsize (self, '-16 -16 0', '16 16 56');
+		self.noise = "sounds_q4/mp/pickups/l_health.wav";
+		self.healamount = 15;
+		self.healtype = 0;
 	}
 	else
 	{
@@ -243,13 +324,47 @@ void() item_health =
 		self.healamount = 25;
 		self.skin = 1;
 		self.healtype = 1;
+	}
+
+	self.mdl = self.model;
+	setsize (self, '-16 -16 0', '16 16 56');
+	self.think1 = SUB_Null;
+};
+
+void() item_health =
+{	
+	self.touch = health_touch;
+
+	if (self.spawnflags & H_ROTTEN)
+	{	
+		self.think1 = rot_health_decide;
+		
+		self.scale = 1.2;
+		setsize (self, '-16 -16 0', '16 16 56');
+	}
+	else
+	if (self.spawnflags & H_MEGA)
+	{
+		setmodel(self, "progs/items/health/health.md3");
+		self.noise = "sounds_q4/mp/pickups/n_health.wav";
+		self.healamount = 100;
+		self.healtype = 2;
+		self.skin = 2;
+		self.scale = 1.5;
+		self.traileffectnum = (particleeffectnum("EF_POWERUP_LIGHT"));
+		setsize (self, '-16 -16 0', '16 16 56');
+	}
+	else
+	{	
+		self.think1 = normal_health_decide;
 		self.scale = 1.2;
 		setsize (self, '-16 -16 0', '16 16 56');
 	}
 	
 	setorigin (self, self.origin + '16 16 0');
 	self.modelflags |= MF_ROTATE;
-	
+	self.effects |= EF_NOSHADOW;
+
 	StartItem (self);
 };
 
@@ -258,10 +373,13 @@ void() health_touch =
 {
 //	local	float amount;
 	local	string	s;
-	
+
 	if (other.classname != "player")
 		return;
 	
+	if (self.playerflags & other.playerflags)
+		return;
+
 	if (self.healtype == 2) // Megahealth?  Ignore max_health...
 	{
 		if (other.health >= 250)
@@ -284,18 +402,36 @@ void() health_touch =
 	sound(other, CHAN_ITEM, self.noise, 1, ATTN_NORM);
 
 	stuffcmd (other, "bf\n");
-	
-	self.model = string_null;
-	self.solid = SOLID_NOT;
-	self.emiteffectnum = 0;
 
-	// Megahealth = rot down the player's super health
+	grow_client_crosshair ();
+    
+	genericItem_despawn ();
+
+		// Megahealth = rot down the player's super health
 	if (self.healtype == 2)
 	{
-		self.nextthink = time + 5;
-		self.think = item_megahealth_rot;
-		other.megahealth_finished = 1;
-		other.megahealth_time = time + 5;
+		if (coop)
+		{
+			if (self.healamount < 100)
+				return;
+			else
+			{	
+				self.model = string_null;
+				self.solid = SOLID_NOT;
+
+				self.nextthink = time + 5;
+				self.think = item_megahealth_rot;
+				other.megahealth_finished = 1;
+				other.megahealth_time = time + 5;
+			}
+		}
+		else
+		{
+			self.nextthink = time + 5;
+			self.think = item_megahealth_rot;
+			other.megahealth_finished = 1;
+			other.megahealth_time = time + 5;
+		}
 	}
 	else
 	{
@@ -306,11 +442,7 @@ void() health_touch =
 			self.think = SUB_regen;
 		}
 	}
-	
-	grow_client_crosshair ();
 
-	activator = other;
-	SUB_UseTargets();				// fire all targets / killtargets
 };	
 
 void() item_megahealth_rot =
@@ -342,10 +474,21 @@ void() armor_touch =
 		return;
 	if (other.classname != "player")
 		return;
+	if (self.playerflags & other.playerflags)
+		return;
 
 	value = self.armorvalue;
 	bit = self.armorbit;
 	type = self.armortype;
+
+	if (deathmatch)
+	{
+		bit = IT_ARMOR2;
+		type = 0.6;
+	}
+
+	if ((skill == 3 && !deathmatch) || deathmatch) // armor points halved for nightmare/deathmatch
+		value /= 2;
 	
 	if (other.armorvalue > 0)
 	{
@@ -376,22 +519,21 @@ void() armor_touch =
 			bit = bit;
 	}
 
-	if(other.armorvalue >= 200) return;
-		
-	other.armortype = type;
+	if(other.armorvalue >= 200) 
+		return;
+	
 	other.armorvalue = floor(value);
+	other.armortype = type;
 
 	if (other.armorvalue > 200)
 		other.armorvalue = 200;
 	
+	if (other.armorvalue > 100)
+		if ((skill == 3 && !deathmatch) || deathmatch)
+			other.armor_rottime = time + 5;
+	
 	other.items = other.items - (other.items & (IT_ARMOR1 | IT_ARMOR2 | IT_ARMOR3)) + bit;
 	other.armorbit = bit;
-
-	self.solid = SOLID_NOT;
-	self.model = string_null;
-	if (deathmatch == 1)
-		self.nextthink = time + 20;
-	self.think = SUB_regen;
 
 	sprint(other, "You got armor\n");
 // armor touch sound
@@ -400,8 +542,11 @@ void() armor_touch =
 	
 	grow_client_crosshair ();
 
-	activator = other;
-	SUB_UseTargets();				// fire all targets / killtargets
+	genericItem_despawn ();
+
+	if (deathmatch == 1)
+		self.nextthink = time + 20;
+	self.think = SUB_regen;
 };
 
 /*QUAKED item_armor1 (0 .5 .8) (-16 -16 0) (16 16 32)
@@ -488,8 +633,6 @@ void() bound_other_ammo =
 	if (other.savedammo_cells <= 0) 
 		other.savedammo_cells += self.savedammo_cells;	
 
-//	if (other.savedammo_shells2 <= 0)
-//		other.savedammo_shells2 += self.savedammo_shells2;
 	if (other.savedammo_bullets <= 0)
 		other.savedammo_bullets += self.savedammo_bullets;	
 	if (other.savedammo_slugs <= 0)
@@ -522,7 +665,7 @@ Deathmatch weapon change rules for picking up a weapon
 	{
 		self.newweaponid = newid;
 		self.weaponstate = WEAPON_DEACTIVATE;	
-		player_run(); // get out of any fire states
+		player_passive(); // get out of any fire states
 	}
 };*/
 
@@ -531,9 +674,12 @@ void(float old, float new, float newid) SinglePlayer_Weapon =
 	if ((old & new)) // already have this weapon
 		return;
 
+	if (self.weaponstate == WEAPON_FLASHUSE) // ?? 
+		return;
+
 	self.newweaponid = newid;
 	self.weaponstate = WEAPON_DEACTIVATE;	
-	player_run(); // get out of any fire states
+	player_passive(); // get out of any fire states
 };
 
 /*
@@ -543,6 +689,19 @@ weapon_touch
 */
 //float() W_BestWeapon;
 
+void(.float field, float mod) add_ammo_weapon =
+{
+	if (self.field <= 0)
+		return;
+	
+	float ammo = self.field;
+	if (mod == -1)
+		ammo = 1;
+
+	mod = 1;
+	other.field += ceil(ammo * mod);
+};
+
 void() weapon_touch =
 {
 	local	float	new, old;
@@ -550,17 +709,11 @@ void() weapon_touch =
 	local	float	leave;
 	local float modifier = 1;
 
-	if (!(other.flags & FL_CLIENT))
+	if (other.classname != "player")
 		return;
 
 	weapon_info_generic gun = getweaponinfo[self.weaponid];
 	new = getweaponbit(self.weaponid);	
-
-// if the player was using his best weapon, change up to the new one if better		
-	stemp = self;
-	self = other;
-	//best = W_BestWeapon();
-	self = stemp;
 
 	if (deathmatch == 2 || coop)
 		leave = 1;
@@ -586,18 +739,23 @@ void() weapon_touch =
 	old = other.items;
 	other.items = other.items | new;
 	
-	if (old & new)
-		modifier = 0.5;
+	if ((old & new))
+	{	
+		if (!deathmatch)
+			modifier = 0.5;
+		else
+			modifier = -1;
+	}
 
-	other.ammo_shells += self.ammo_shells * modifier;
-	other.ammo_nails += self.ammo_nails * modifier;
-	other.ammo_rockets += self.ammo_rockets * modifier;
-	other.ammo_cells += self.ammo_cells * modifier;
-	other.ammo_bullets += self.ammo_bullets * modifier;
-	other.ammo_coils += self.ammo_coils * modifier;
-	other.ammo_grenades += self.ammo_grenades * modifier;
-	other.ammo_slugs += self.ammo_slugs * modifier;
-	other.ammo_dmc += self.ammo_dmc * modifier;
+	add_ammo_weapon (ammo_bullets, modifier);
+	add_ammo_weapon (ammo_shells, modifier);
+	add_ammo_weapon (ammo_cells, modifier);
+	add_ammo_weapon (ammo_grenades, modifier);
+	add_ammo_weapon (ammo_nails, modifier);
+	add_ammo_weapon (ammo_rockets, modifier);
+	add_ammo_weapon (ammo_slugs, modifier);
+	add_ammo_weapon (ammo_coils, modifier);
+	add_ammo_weapon (ammo_dmc, modifier);
 
 	bound_other_ammo ();
 	float newid = self.weaponid;
@@ -609,13 +767,21 @@ void() weapon_touch =
 	
 	if (self.weapon != new && self.weaponid != newid)	
 	{	
-		//if (!deathmatch)
-			SinglePlayer_Weapon (old, new, newid);
-		//else
-			//Deathmatch_Weapon (self.oldweaponid, newid);
+		SinglePlayer_Weapon (old, new, newid);
 	}
 
 	self = stemp;
+
+	if (coop)
+	{	
+		self.playerflags |= other.playerflags;
+		self.max_player_interaction ++;
+		if (self.max_player_interaction == 1)
+		{
+			activator = other;
+			SUB_UseTargets();				// fire all targets / killtargets
+		}
+	}
 
 	if (leave)
 		return;
@@ -627,6 +793,9 @@ void() weapon_touch =
 		self.nextthink = time + 30;
 	self.think = SUB_regen;
 	
+	if (coop)
+		return;
+		
 	activator = other;
 	SUB_UseTargets();				// fire all targets / killtargets
 };
@@ -643,6 +812,19 @@ float weapon_ranks[8] = // not real ranking, just linear progression
 	10, // dmg
 };
 
+void() weapon_ammo_init =
+{
+	self.ammo_bullets = 0;
+	self.ammo_shells = 0;
+	self.ammo_cells = 0;
+	self.ammo_grenades = 0;
+	self.ammo_nails = 0;
+	self.ammo_rockets = 0;
+	self.ammo_slugs = 0;
+	self.ammo_coils = 0;
+	self.ammo_dmc = 0;
+};
+
 /*QUAKED weapon_supershotgun (0 .5 .8) (-16 -16 0) (16 16 32)
 */
 
@@ -650,6 +832,7 @@ float weapon_ranks[8] = // not real ranking, just linear progression
 
 void() weapon_supershotgun =
 {	
+	weapon_ammo_init ();
 	setmodel (self, "progs/weapons/shotgun/world.md3");
 	self.netname = "the Shotgun";
 	self.netname2 = "some Shells";
@@ -672,9 +855,10 @@ void() weapon_supershotgun =
 
 void() weapon_nailgun =
 {
+	weapon_ammo_init ();
 	setmodel (self, "progs/weapons/hyperblaster/world.md3");
 	self.netname = "the Hyperblaster";
-	self.netname2 = "some Cells";
+	self.netname2 = "some Batteries";
 	self.touch = weapon_touch;
 	self.modelflags = MF_ROTATE;
 	self.ammo_cells = 40;
@@ -690,9 +874,10 @@ void() weapon_nailgun =
 
 void() weapon_hyperblaster =
 {
+	weapon_ammo_init ();
 	setmodel (self, "progs/weapons/hyperblaster/world.md3");
 	self.netname = "the Hyperblaster";
-	self.netname2 = "some Cells";
+	self.netname2 = "some Batteries";
 	self.touch = weapon_touch;
 	self.modelflags = MF_ROTATE;
 	self.ammo_cells = 40;
@@ -733,6 +918,7 @@ void() w_ng_decide =
 
 void() weapon_supernailgun =
 {	
+	weapon_ammo_init ();
 	self.weaponid = 6;
 
 	setmodel (self, "progs/weapons/nailgun/world.md3");
@@ -754,6 +940,7 @@ void() weapon_supernailgun =
 
 void() weapon_nailgun2 =
 {	
+	weapon_ammo_init ();
 	self.weaponid = 6;
 
 	setmodel (self, "progs/weapons/nailgun/world.md3");
@@ -777,6 +964,7 @@ void() weapon_nailgun2 =
 */
 void() weapon_grenadelauncher =
 {
+	weapon_ammo_init ();
 	setmodel (self, "progs/weapons/grenadelauncher/world.md3");
 	self.netname = "the Grenade Launcher";
 	self.netname2 = "some Nades";
@@ -797,7 +985,25 @@ void() weapon_grenadelauncher =
 */
 
 void() w_rl_decide = 
-{
+{	
+	if (self.pissed)	
+		return;
+
+	self.pissed = 1;
+	if (deathmatch)
+	{	
+		if (random() <= 0.5)
+		{
+			weapon_railgun ();
+			return;			
+		}
+		else
+		{
+			weapon_rocketlauncher2 ();
+			return;			
+		}
+	}
+
 	if (!deathmatch && !coop)
 	{	
 		float bit = getweaponbit(self.weaponid);
@@ -821,6 +1027,7 @@ void() w_rl_decide =
 
 void() weapon_rocketlauncher =
 {	
+	weapon_ammo_init ();
 	self.weaponid = 7;
 
 	setmodel (self, "progs/weapons/rocketlauncher/world.md3");
@@ -841,6 +1048,7 @@ void() weapon_rocketlauncher =
 
 void() weapon_rocketlauncher2 =
 {	
+	weapon_ammo_init ();
 	self.weaponid = 7;
 
 	setmodel (self, "progs/weapons/rocketlauncher/world.md3");
@@ -864,6 +1072,7 @@ void() weapon_rocketlauncher2 =
 
 void() weapon_railgun =
 {	
+	weapon_ammo_init ();
 	setmodel (self, "progs/weapons/railgun/world.md3");
 	self.netname = "the Railgun";
 	self.netname2 = "some Slugs";
@@ -881,7 +1090,26 @@ void() weapon_railgun =
 };
 
 void() w_lg_decide = 
-{
+{	
+	if (self.pissed)	
+		return;
+
+	self.pissed = 1;
+
+	if (deathmatch)
+	{	
+		if (random() < 0.15)
+		{
+			weapon_dmg();
+			return;			
+		}
+		else
+		{
+			weapon_lightning2 ();
+			return;			
+		}
+	}
+
 	if (!deathmatch && !coop)
 	{	
 		float bit = getweaponbit(self.weaponid);
@@ -906,6 +1134,7 @@ void() w_lg_decide =
 
 void() weapon_lightning =
 {	
+	weapon_ammo_init ();
 	self.weaponid = 9;
 
 	setmodel (self, "progs/weapons/lightning_gun/world.md3");
@@ -928,6 +1157,7 @@ void() weapon_lightning =
 
 void() weapon_lightning2 =
 {	
+	weapon_ammo_init ();
 	self.weaponid = 9;
 
 	setmodel (self, "progs/weapons/lightning_gun/world.md3");
@@ -950,9 +1180,10 @@ void() weapon_lightning2 =
 
 void() weapon_dmg =
 {
+	weapon_ammo_init ();
 	setmodel (self, "progs/weapons/darkmatter/world.md3");
 	self.netname = "the Disintergrator";
-	self.netname2 = "a darkmatter core";
+	self.netname2 = "a Dark-matter Core";
 	self.modelflags = MF_ROTATE;
 	self.touch = weapon_touch;
 	self.ammo_dmc = 3;
@@ -979,94 +1210,58 @@ float UNCOMMON = 2;
 float RARE = 3;
 float SCACRE = 4;
 
+float ammo_limits [] =
+{	
+	0,
+	MAX_BULLETS,
+	MAX_SHELLS,
+	MAX_CELLS,
+	MAX_GRENADES,
+	MAX_NAILS,
+	MAX_ROCKETS,
+	MAX_SLUGS,
+	MAX_COILS,
+	MAX_CORES
+};
+
+void(.float field) add_ammo_ammo =
+{	
+	if (self.field <= 0)
+		return;
+	
+	float ammo = self.field;
+	float limit = ammo_limits[self.weaponid - 1];
+	if (other.field >= limit)
+		return;
+	
+	//bprint(ftos(self.weaponid));
+	if (!(other.items & getweaponbit(self.weaponid)))
+		ammo *= 0.25;
+
+	other.field += ceil(ammo);
+};
+
 void() ammo_touch =
 {
-local entity	stemp;
-	
+//local entity	stemp;
+
 	if (other.classname != "player")
 		return;
 	if (other.health <= 0)
 		return;
-	
-// if the player was using his best weapon, change up to the new one if better		
-	stemp = self;
-	self = other;
-	//best = W_BestWeapon();
-	self = stemp;
+		
+	if (self.playerflags & other.playerflags)
+		return;
 
-	if (self.ammo_bullets > 0)
-	{
-		if (other.ammo_bullets >= MAX_BULLETS)
-			return;
-
-		other.ammo_bullets += self.ammo_bullets;
-	}
-
-	if (self.ammo_shells > 0)
-	{
-		if (other.ammo_shells >= MAX_SHELLS)
-			return;
-
-		other.ammo_shells += self.ammo_shells;
-	}
-
-	if (self.ammo_cells > 0)
-	{
-		if (other.ammo_cells >= MAX_CELLS)
-			return;
-
-		other.ammo_cells += self.ammo_cells;
-	}
-
-	if (self.ammo_grenades > 0) 
-	{
-		if (other.ammo_grenades >= MAX_GRENADES)
-			return;
-
-		other.ammo_grenades += self.ammo_grenades;
-	}
-
-	if (self.ammo_nails > 0)
-	{
-		if (other.ammo_nails >= MAX_NAILS)
-			return;
-
-		other.ammo_nails += self.ammo_nails;
-	}
-
-	if (self.ammo_rockets > 0)
-	{
-		if (other.ammo_rockets >= MAX_ROCKETS)
-			return;
-
-		other.ammo_rockets += self.ammo_rockets;
-	}
-
-	if (self.ammo_slugs > 0)
-	{
-		if (other.ammo_slugs >= MAX_SLUGS)
-			return;
-
-		other.ammo_slugs += self.ammo_slugs;
-	}
-
-	if (self.ammo_coils > 0)
-	{
-		if (other.ammo_coils >= MAX_COILS)
-			return;
-
-		other.ammo_coils += self.ammo_coils;
-	}
-
-	
-	if (self.ammo_dmc > 0)
-	{
-		if (other.ammo_dmc >= MAX_CORES)
-			return;
-
-		other.ammo_dmc += self.ammo_dmc;
-
-	}
+	add_ammo_ammo (ammo_bullets);
+	add_ammo_ammo (ammo_shells);
+	add_ammo_ammo (ammo_cells);
+	add_ammo_ammo (ammo_grenades);
+	add_ammo_ammo (ammo_nails);
+	add_ammo_ammo (ammo_rockets);
+	add_ammo_ammo (ammo_slugs);
+	add_ammo_ammo (ammo_coils);
+	add_ammo_ammo (ammo_dmc);
 
 	bound_other_ammo ();
 
@@ -1082,18 +1277,8 @@ local entity	stemp;
 
 	grow_client_crosshair ();
 
-// remove it in single player, or setup for respawning in deathmatch
-	self.model = string_null;
-	self.solid = SOLID_NOT;
-	if (deathmatch == 1)
-		self.nextthink = time + 30;
-	self.think = SUB_regen;
-
-	activator = other;
-	SUB_UseTargets();				// fire all targets / killtargets
+	genericItem_despawn ();
 };
-
-
 
 
 float WEAPON_BIG2 = 1;
@@ -1110,43 +1295,52 @@ void(float f, string name) item_placeholder =
 	it.touch = ammo_touch;
 	setorigin(it, self.origin);
 	it.frame = f;
+	
+	entity oself = self;
+	self = it;
+
+	weapon_ammo_init ();
+
+	self = oself;
 
 	setsize (it, '0 0 0', '32 32 56');
 
 	if (name == "Bullets") {
-		it.ammo_bullets = self.ammo_bullets; it.skin = 0; }
+		it.ammo_bullets = self.ammo_bullets; it.skin = 0; self.weaponid = 2;}
 
 	if (name == "Shells") {
-		it.ammo_shells = self.ammo_shells; it.skin = 1; }
+		it.ammo_shells = self.ammo_shells; it.skin = 1; self.weaponid = 3;}
 	
-	if (name == "Cells") {
-		it.ammo_cells = self.ammo_cells; it.skin = 2; }
+	if (name == "Batteries") {
+		it.ammo_cells = self.ammo_cells; it.skin = 2; self.weaponid = 4; }
 
 	if (name == "Nades") {
-		it.ammo_grenades = self.ammo_grenades; it.skin = 3; }
+		it.ammo_grenades = self.ammo_grenades; it.skin = 3; self.weaponid = 5; }
 
 	if (name == "Nails") {
-		it.ammo_nails = self.ammo_nails; it.skin = 4; }
+		it.ammo_nails = self.ammo_nails; it.skin = 4; self.weaponid = 6; }
 
 	if (name == "Rockets") {
-		it.ammo_rockets = self.ammo_rockets; it.skin = 5; }
+		it.ammo_rockets = self.ammo_rockets; it.skin = 5; self.weaponid = 7; }
 
 	if (name == "Slugs") {
-		it.ammo_slugs = self.ammo_slugs; it.skin = 6; }
+		it.ammo_slugs = self.ammo_slugs; it.skin = 6; self.weaponid = 8; }
 
 	if (name == "Coils") {
-		it.ammo_coils = self.ammo_coils; it.skin = 7; }
+		it.ammo_coils = self.ammo_coils; it.skin = 7; self.weaponid = 9; }
 
 	if (name == "Dark-matter Cores") {
-		it.ammo_dmc = self.ammo_dmc; it.skin = 8; }
+		it.ammo_dmc = self.ammo_dmc; it.skin = 8; self.weaponid = 10; }
 
+	it.weaponid = it.skin + 2;
 	it.netname = name;
 	it.scale = 1.2;
 	StartItem (it);
 }
 
 void() item_shells =
-{
+{	
+	weapon_ammo_init ();
 	if (self.spawnflags & WEAPON_BIG2)
 	{
 		//self.netname = "multiple shells and bullets";
@@ -1177,6 +1371,7 @@ void() item_shells =
 
 void() item_spikes =
 {
+	weapon_ammo_init ();
 	if (self.spawnflags & WEAPON_BIG2)
 	{
 		//self.netname = "multiple cells, nades and coils";
@@ -1192,7 +1387,7 @@ void() item_spikes =
 		self.ammo_coils = 30;
 	}
 	
-	item_placeholder ( 0, "Cells");
+	item_placeholder ( 0, "Batteries");
 	item_placeholder ( 1, "Nades"); 
 	item_placeholder ( 2, "Coils"); 
 
@@ -1210,6 +1405,7 @@ void() item_spikes =
 
 void() item_rockets =
 {
+	weapon_ammo_init ();
 	if (self.spawnflags & WEAPON_BIG2)
 	{
 		//self.netname = "multiple rockets, slugs and nails";
@@ -1244,6 +1440,7 @@ void() item_rockets =
 
 void() item_cells =
 {
+	weapon_ammo_init ();
 	if (self.spawnflags & WEAPON_BIG2)
 	{
 		//self.netname = "multiple rockets, slugs and nails";
@@ -1290,19 +1487,35 @@ void() key_touch =
 	if (other.items & self.items)
 		return;
 
-	sprint (other, "You got the ");
-	sprint (other, self.netname);
-	sprint (other,"\n");
-
-	sound (other, CHAN_ITEM, self.noise, 1, ATTN_NORM);
-	stuffcmd (other, "bf\n");
-	other.items = other.items | self.items;
-
 	if (!coop)
-	{	
-		self.solid = SOLID_NOT;
-		self.model = string_null;
+	{
+		sprint (other, "You got the ");
+		sprint (other, self.netname);
+		sprint (other,"\n");
+		sound (other, CHAN_ITEM, self.noise, 1, ATTN_NORM);
+		stuffcmd (other, "bf\n");
+		other.items = other.items | self.items;
 	}
+
+	if (coop) // thx boondorl
+	{
+		entity p = find(world, classname, "player");
+		while (p)
+		{	
+			if (self.items & IT_KEY1)
+				sprint(p, "You got the ", self.netname, "\n");
+			else if (self.items & IT_KEY2)
+				sprint(p, "You got the ", self.netname, "\n");
+			
+			stuffcmd (p, "bf\n");
+			p.items |= self.items;
+			p = find(p, classname, "player");
+			sound (p, CHAN_ITEM, self.noise, 1, ATTN_NORM);
+		}
+	}
+
+	self.solid = SOLID_NOT;
+	self.model = string_null;
 
 	grow_client_crosshair ();
 
@@ -1627,166 +1840,4 @@ void() item_artifact_super_damage =
 	self.emiteffectnum = (particleeffectnum("EF_POWERUP_LIGHT"));
 	setsize (self, '-16 -16 0', '16 16 64');
 	StartItem (self);
-};
-
-/*
-===============================================================================
-
-PLAYER BACKPACKS
-
-===============================================================================
-*/
-
-void() BackpackTouch =
-{
-	local string	s;
-	local	float	old, new;
-	local		entity	stemp;
-	local	float	acount;
-	
-	if (other.classname != "player")
-		return;
-	if (other.health <= 0)
-		return;
-
-	acount = 0;
-	sprint (other, "You get ");
-
-	if (self.items)
-		if ((other.items & self.items) == 0)
-		{
-			acount = 1;
-			sprint (other, "the ");
-			sprint (other, self.netname);
-		}
-
-// if the player was using his best weapon, change up to the new one if better		
-	stemp = self;
-	self = other;
-//	best = W_BestWeapon();
-	self = stemp;
-
-// change weapons
-	other.ammo_shells = other.ammo_shells + self.ammo_shells;
-	other.ammo_nails = other.ammo_nails + self.ammo_nails;
-	other.ammo_rockets = other.ammo_rockets + self.ammo_rockets;
-	other.ammo_cells = other.ammo_cells + self.ammo_cells;
-
-	new = self.items;
-	if (!new)
-		new = other.weapon;
-	old = other.items;
-	other.items = other.items | new;
-	
-	bound_other_ammo ();
-
-	if (self.ammo_shells)
-	{
-		if (acount)
-			sprint(other, ", ");
-		acount = 1;
-		s = ftos(self.ammo_shells);
-		sprint (other, s);
-		sprint (other, " shells");
-	}
-	if (self.ammo_nails)
-	{
-		if (acount)
-			sprint(other, ", ");
-		acount = 1;
-		s = ftos(self.ammo_nails);
-		sprint (other, s);
-		sprint (other, " nails");
-	}
-	if (self.ammo_rockets)
-	{
-		if (acount)
-			sprint(other, ", ");
-		acount = 1;
-		s = ftos(self.ammo_rockets);
-		sprint (other, s);
-		sprint (other, " rockets");
-	}
-	if (self.ammo_cells)
-	{
-		if (acount)
-			sprint(other, ", ");
-		acount = 1;
-		s = ftos(self.ammo_cells);
-		sprint (other, s);
-		sprint (other, " cells");
-	}
-	
-	sprint (other, "\n");
-// backpack touch sound
-	sound (other, CHAN_ITEM, "sounds_q4/items/ammo/default.wav", 1, ATTN_NORM);
-	stuffcmd (other, "bf\n");
-
-	grow_client_crosshair ();
-
-// remove the backpack, change self to the player
-	remove(self);
-	self = other;
-
-	W_SetCurrentAmmo (TRUE);
-};
-
-/*
-===============
-DropBackpack
-===============
-*/
-void() DropBackpack =
-{
-	local entity	item;
-
-	if (!(self.ammo_shells + self.ammo_nails + self.ammo_rockets + self.ammo_cells))
-		return;	// nothing in it
-
-	item = spawn();
-	item.origin = self.origin + '0 0 24';
-	
-	item.items = self.weapon;
-
-	/*if (item.items == IT_AXE)
-		item.netname = "Fists";
-	else if (item.items == IT_SHOTGUN)
-		item.netname = "Pistol";
-	else if (item.items == IT_SUPER_SHOTGUN)
-		item.netname = "Shotgun";
-	else if (item.items == IT_NAILGUN)
-		item.netname = "Machine Gun";
-	else if (item.items == IT_SUPER_NAILGUN)
-		item.netname = "ChainGun";
-	else if (item.items == IT_GRENADE_LAUNCHER)
-		item.netname = "Grenades";
-	else if (item.items == IT_ROCKET_LAUNCHER)
-		item.netname = "Rocket Launcher";
-	else if (item.items == IT_LIGHTNING)
-		item.netname = "Plasma Gun";
-	else if (item.items == IT_BFG)
-		item.netname = "B.F.G 9000";
-	else if (item.items == IT_CHAINSAW)
-		item.netname = "Chainsaw";
-	else
-		item.netname = "";*/
-
-	item.ammo_shells = self.ammo_shells;
-	item.ammo_nails = self.ammo_nails;
-	item.ammo_rockets = self.ammo_rockets;
-	item.ammo_cells = self.ammo_cells;
-
-	item.velocity_z = 300;
-	item.velocity_x = -100 + (random() * 200);
-	item.velocity_y = -100 + (random() * 200);
-	
-	item.flags = FL_ITEM;
-	item.solid = SOLID_TRIGGER;
-	item.movetype = MOVETYPE_TOSS;
-	setmodel (item, "progs/backpack.mdl");
-	setsize (item, '-16 -16 0', '16 16 56');
-	item.touch = BackpackTouch;
-	
-	item.nextthink = time + 120;	// remove after 2 minutes
-	item.think = SUB_Remove;
 };
