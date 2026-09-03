@@ -304,6 +304,36 @@ progs/weapons/rocketlauncher/w_rl
     }
 }
 
+progs/items/health/mp_healthb
+{
+    {
+       	map progs/items/health/mp_healthb.tga
+        rgbGen lightingDiffuse
+    }
+    {
+        map progs/items/health/mp_health_glowb.tga
+        blendfunc GL_ONE GL_ONE
+	rgbGen entity	// identity
+	rgbgen wave sin 0.6 0.2 0 1
+    }
+}
+
+progs/items/health/mp_healthb_orb
+{
+    {
+	map effects/tinfx2b.tga
+	tcGen environment
+	blendfunc GL_ONE GL_ONE
+	rgbGen const ( 0.6 0.6 0.6)	// identity
+    }
+    {
+        map progs/items/health/mp_healthb_orb.tga
+        blendfunc GL_ONE GL_ONE
+	rgbGen const ( 0.8 0.8 0.8)	// identity
+	tcMod scroll 1.1 1.1 
+    }
+}
+
 progs/items/health/mp_healthc
 {
     {
@@ -321,11 +351,18 @@ progs/items/health/mp_healthc
 progs/items/health/mp_healthc_orb
 {
     {
+	map effects/tinfx2b.tga
+	tcGen environment
+	blendfunc GL_ONE GL_ONE
+	rgbGen const ( 0.6 0.6 0.6)	// identity
+    }
+    {
         map progs/items/health/mp_healthc_orb.tga
         blendfunc GL_ONE GL_ONE
 	rgbGen const ( 0.8 0.8 0.8)	// identity
 	tcMod scroll 1.1 1.1 
     }
+
 }
 
 progs/items/health/mp_healthd
@@ -344,6 +381,14 @@ progs/items/health/mp_healthd
 
 progs/items/health/mp_healthd_orb
 {
+    {
+	map effects/envmapgold.tga
+        tcGen environment
+        tcmod rotate 33
+        tcmod scroll 1 1
+	blendfunc GL_ONE GL_ONE
+	rgbGen const ( 0.6 0.6 0.6)	// identity
+    }
     {
         map progs/items/health/mp_healthd_orb.tga
         blendfunc GL_ONE GL_ONE
@@ -369,6 +414,14 @@ progs/items/health/mp_megahealth
 progs/items/health/mp_megahealth_orb
 {
     {
+	map effects/envmapblue2.tga
+        tcGen environment
+        tcmod rotate 33
+        tcmod scroll 1 1
+	blendfunc GL_ONE GL_ONE
+	rgbGen const ( 0.6 0.6 0.6)	// identity
+    }
+    {
         map progs/items/health/mp_megahealth_orb.tga
         blendfunc GL_ONE GL_ONE
 	rgbGen const ( 0.8 0.8 0.8)	// identity
@@ -378,9 +431,18 @@ progs/items/health/mp_megahealth_orb
 
 progs/items/small_armor
 {
+
     {
        	map progs/items/armor/armor_small.tga
         rgbGen entity
+    }
+    {
+	map effects/envmapgreen.tga
+        tcGen environment
+        tcmod rotate 33
+        tcmod scroll 1 1
+	blendfunc GL_ONE GL_ONE
+	rgbGen const ( 0.6 0.6 0.6)	// identity
     }
     {
         map progs/items/health/mp_healthb_orb.tga
@@ -398,6 +460,14 @@ progs/items/light_armor
         rgbGen entity
     }
     {
+	map effects/envmapgold.tga
+        tcGen environment
+        tcmod rotate 33
+        tcmod scroll 1 1
+	blendfunc GL_ONE GL_ONE
+	rgbGen const ( 0.6 0.6 0.6)	// identity
+    }
+    {
         map progs/items/health/mp_healthc_orb.tga
         blendfunc GL_ONE GL_ONE
 	rgbGen const ( 0.8 0.8 0.8)	// identity
@@ -408,9 +478,19 @@ progs/items/light_armor
 
 progs/items/heavy_armor
 {
+
     {
        	map progs/items/armor/armor_heavy.tga
         rgbGen entity
+    }
+    {
+	map effects/envmaproc.tga
+	tcGen environment
+        tcGen environment
+        tcmod rotate 33
+        tcmod scroll 1 1
+	blendfunc GL_ONE GL_ONE
+	rgbGen const ( 0.6 0.6 0.6)	// identity
     }
     {
         map progs/items/health/mp_healthd_orb.tga
@@ -432,6 +512,15 @@ progs/items/regen
 	rgbGen entity
     }
     {
+	map effects/regenmap2.tga
+        tcGen environment
+        tcmod rotate 33
+        tcmod scroll 1 1
+	blendfunc GL_ONE GL_ONE
+	rgbGen const ( 0.6 0.6 0.6)	// identity
+		
+    }
+    {
         map progs/items/health/mp_healthc_orb.tga
         blendfunc GL_ONE GL_ONE
 	rgbGen const ( 0.8 0.8 0.8)	// identity
@@ -444,6 +533,14 @@ progs/items/quad
     {
        	map progs/items/power_ups/quad.tga
         rgbGen entity
+    }
+    {
+	map effects/quadmap2.tga
+        tcGen environment
+        tcmod rotate 33
+        tcmod scroll 1 1
+	blendfunc GL_ONE GL_ONE
+	rgbGen const ( 0.6 0.6 0.6)	// identity	
     }
     {
         map progs/items/power_ups/invis2.tga
@@ -464,16 +561,18 @@ progs/items/invis
         blendfunc GL_ONE GL_ONE
 	rgbGen entity
     }
-    {
-        map progs/items/power_ups/invis2.tga
-        blendfunc GL_ONE GL_ONE
-	rgbGen const ( 0.8 0.8 0.8)	// identity
-	tcMod scroll 1.1 1.1 
-    }
 }
 
 progs/items/invis2
 {
+    {
+	map effects/envmapblue2.tga
+        tcGen environment
+        tcmod rotate 33
+        tcmod scroll 1 1
+	blendfunc GL_ONE GL_ONE
+	rgbGen const ( 0.6 0.6 0.6)	// identity	
+    }
     {
         map progs/items/power_ups/invis2.tga
         blendfunc GL_ONE GL_ONE
