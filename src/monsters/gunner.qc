@@ -1144,7 +1144,7 @@ void() spawn_gunner =
 
 	setmodel(self, "progs/monsters/gunner/gunner.md5.info");
 	self.classname = "monster_gunner";
-	setsize(self, '-16 -16 0', '16 16 64');
+	setsize(self, '-18 -18 0', '18 18 64');
 	self.health = 360;
 	self.max_health = 360;
 	self.mass = 300;
@@ -1207,7 +1207,7 @@ void(float bool) gunner_shoot =
 
 	AngleVectors(self.angles, f, r, u);
 //	vector org = self.pos2;
-	dir = normalize(self.enemy.origin - self.pos2 + self.enemy.view_ofs + self.enemy.velocity * 0.2);
+	dir = normalize(self.enemy.origin - self.pos2 + '0 0 24' + self.enemy.velocity * 0.2);
 	float dist = vlen(dir);
 	float pitch;
 
@@ -1231,7 +1231,7 @@ void(float bool) gunner_shoot =
 //PGM	
 
 	float ldmg = 60 + (random() + random() + random())*12;
-	if (M_CalculatePitchToFire (self.enemy.origin, self.pos2, dir, 700, 2.5, 0, 0))
+	if (M_CalculatePitchToFire (self.enemy.origin + '0 0 24', self.pos2, dir, 700, 2.5, 0, 0))
 		monster_FireGravityBall (self.pos2, dir, ldmg, 2.5, (crandom() * 10), crandom() * 10, 700);
 	else
 		monster_FireGravityBall (self.pos2, dir, ldmg, 2.5, (crandom() * 10), 200 + (crandom() * 10), 700);
@@ -1276,7 +1276,9 @@ void() gunner_flash =
 
 void() gunner_flash2 = 
 {   
-   
+	if (skill > 2)
+		return;
+
     vector org;
 
     org = self.pos2;

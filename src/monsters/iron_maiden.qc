@@ -873,7 +873,7 @@ void() maid_shoot_home =
 
 void() maid_scream = 
 {   
-	vector dir = normalize(self.enemy.origin - self.origin);
+	vector dir = normalize(self.enemy.origin - self.origin + '0 0 24');
 	pointparticles (particleeffectnum("TE_BANSHEE"), self.pos2, dir*2000, 1);
 
 	vector aim = setvector (140, 0, 0);

@@ -1361,7 +1361,7 @@ static string sight_list[13] =
 	"sounds_q4/strogg/stroggmarine/sight4.wav",
 	"sounds_q4/strogg/stroggmarine/sight5.wav",
 	"sounds_q4/strogg/stroggmarine/sight6.wav",
-	"sounds_q4/strogg/stroggmarine/sight7.wav",
+	"sounds_q4/strogg/stroggmarine/sight6.wav",
 	"sounds_q4/strogg/stroggmarine/sight8.wav",
 	"sounds_q4/strogg/stroggmarine/sight9.wav",
 	"sounds_q4/strogg/stroggmarine/sight10.wav",
@@ -1409,7 +1409,7 @@ void() monster_soldier_cache =
     precache_sound("sounds_q4/strogg/stroggmarine/sight4.wav");
 	precache_sound("sounds_q4/strogg/stroggmarine/sight5.wav");
 	precache_sound("sounds_q4/strogg/stroggmarine/sight6.wav");
-	precache_sound("sounds_q4/strogg/stroggmarine/sight7.wav");
+	precache_sound("sounds_q4/strogg/stroggmarine/sight6.wav");
     precache_sound("sounds_q4/strogg/stroggmarine/sight8.wav");
 	precache_sound("sounds_q4/strogg/stroggmarine/sight9.wav");
 	precache_sound("sounds_q4/strogg/stroggmarine/sight10.wav");
@@ -1457,11 +1457,11 @@ void() monster_soldier_cache =
 	precache_sound("sounds_q4/strogg/stroggmarine/breath03.wav");	
 	precache_sound("sounds_q4/strogg/stroggmarine/breath04.wav");	
 
-	precache_sound("sounds_q4/monsters/stroggmarine/weapon_slap.wav");	
-	precache_sound("sounds_q4/monsters/stroggmarine/slash.wav");	
+	precache_sound("sounds_q4/strogg/stroggmarine/weapon_slap.wav");	
+	precache_sound("sounds_q4/strogg/stroggmarine/slash.wav");	
 
-	precache_sound("sounds_q4/monsters/stroggmarine/fire01.wav");	
-	precache_sound("sounds_q4/monsters/stroggmarine/fire02.wav");	
+	precache_sound("sounds_q4/strogg/stroggmarine/fire01.wav");	
+	precache_sound("sounds_q4/strogg/stroggmarine/fire02.wav");	
 //	spawn_demon ();
 };
 
@@ -1639,9 +1639,9 @@ void() soldier_shoot =
 	if (self.weapontype == 2)
 	{
 		if (random() <= 0.5)
-			sound(self, CHAN_WEAPON, "sounds_q4/monsters/stroggmarine/fire01.wav", 1, ATTN_NORM);
+			sound(self, CHAN_WEAPON, "sounds_q4/strogg/stroggmarine/fire01.wav", 1, ATTN_NORM);
 		else
-			sound(self, CHAN_WEAPON, "sounds_q4/monsters/stroggmarine/fire02.wav", 1, ATTN_NORM);
+			sound(self, CHAN_WEAPON, "sounds_q4/strogg/stroggmarine/fire02.wav", 1, ATTN_NORM);
 	}
 	if (self.weapontype == 3)
 	{
@@ -1667,7 +1667,7 @@ void() soldier_shoot =
 	pointparticles (particleeffectnum("TE_MUZZLEFLASH2"), org , '0 0 0');
 	pointparticles (particleeffectnum("EF_MUZZLEFLASH2"), org , '0 0 0');
 
-	dir = en.origin - en.velocity*0.15;
+	dir = en.origin - en.velocity*0.15  + '0 0 24';
 
 	makevectors(self.angles);
 	org = org + v_forward * -32;
@@ -1694,9 +1694,9 @@ void(float bool) soldier_Melee =
 	if (fire_hit(aim, rint(ldmg), 10))
 	{	
 		if (bool == 1)
-			sound(self, CHAN_WEAPON, "sounds_q4/monsters/stroggmarine/weapon_slap.wav", 1, ATTN_NORM);
+			sound(self, CHAN_WEAPON, "sounds_q4/strogg/stroggmarine/weapon_slap.wav", 1, ATTN_NORM);
 		else
-			sound(self, CHAN_WEAPON, "sounds_q4/monsters/stroggmarine/slash.wav", 1, ATTN_NORM);
+			sound(self, CHAN_WEAPON, "sounds_q4/strogg/stroggmarine/slash.wav", 1, ATTN_NORM);
 	}
 	else
 	{
@@ -1707,7 +1707,9 @@ void(float bool) soldier_Melee =
 
 void() soldier_flash = 
 {   
-   
+	if (skill > 2)
+		return;
+	   
     vector org;
 
     org = self.pos2;

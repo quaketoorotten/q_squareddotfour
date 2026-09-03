@@ -75,7 +75,7 @@ void() lt_tank_run2 = [ self.frame, lt_tank_run2 ]
 		return;
 	}
 
-    if (random() <= 0.1)
+    if (random() <= 0.3)
         CheckForCharge (2 + 2*random());
 
     ai_run(3);
@@ -415,6 +415,12 @@ void() lt_tank_meleed2 = [ self.frame, lt_tank_meleed2 ]
 
 void() lt_tank_MeleeAttack =
 {	
+	if (vlen(self.enemy.origin - self.origin) >= 100)
+	{
+		lt_tank_MissileAttack ();
+		return;
+	}
+
 	lt_tank_sfx_growl ();
 
 	float r = rint(random() * 2);
@@ -443,22 +449,25 @@ void() lt_tank_MissileAttack =
 {   
 	lt_tank_sfx_growl ();
 
-    if ((vlen(self.enemy.origin - self.origin) <= 200))
+    if ((vlen(self.enemy.origin - self.origin) <= 350))
 	{   
         if (self.aiflags & AI_CHARGE)
 		{
-			if (vlen(self.enemy.origin - self.origin) >= 100)
+			if (vlen(self.enemy.origin - self.origin) >= 120)
 				lt_tank_missileb1 ();
 			else
 				lt_tank_meleed1 ();
 			return;
 		}
-        else if (random() <= 0.5)
-        {
-            lt_tank_missileb1 ();
-            return;
+        else 
+        {	
+			//bprint ("???", "\n");
+			if (random() <= 0.3)
+            	lt_tank_missileb1 ();
+			else
+				lt_tank_missilec1 ();
+			return;
         }
-		
 	}
 
 	if ((self.aiflags & AI_CHARGE) && random() <= 0.5)
@@ -947,7 +956,7 @@ void() lt_tank_shoot_flame =
 
 	//self.pos2 = org ;
 
-	vector dir = normalize(self.enemy.origin - org + '0 0 -24');
+	vector dir = normalize(self.enemy.origin - org + '0 0 4');
 
 	vector f, r, u;
 	AngleVectors(self.angles, f, r, u);
@@ -976,7 +985,7 @@ void(float kick) lt_tank_Melee =
 
 	vector	aim;
 
-	aim = setvector (100, 0, 0);
+	aim = setvector (120, 0, 0);
 	if (fire_hit(aim, rint(ldmg), kick))
 	{	
 		meat_hit (); 
@@ -1005,7 +1014,9 @@ void() lt_tank_flash =
 
 void() lt_tank_flash2 = 
 {   
-   
+	if (skill > 2)
+		return;
+	   
     vector org;
 
     org = self.pos2;

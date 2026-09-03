@@ -1000,7 +1000,7 @@ void() monster_tactical_cache =
 	for (float i=0;i<15;i++)
 		precache_sound(chat_list[i]);
 
-	precache_sound("sounds_q4/monsters/stroggmarine/weapon_slap.wav");	
+	precache_sound("sounds_q4/strogg/stroggmarine/weapon_slap.wav");	
 //	precache_sound("sounds_q4/monsters/tactical_transfer/slash.wav");	
 
 //	spawn_demon ();
@@ -1085,7 +1085,7 @@ void() spawn_tactical =
 	if (self.weaponname == "weapon_hyperblaster")
 		setmodel(self, "progs/monsters/tactical/tactical_transfer_hb.md5.info");
 
-	setsize(self, '-16 -16 0', '16 16 64');
+	setsize(self, '-16 -16 0', '16 16 56');
 
 	self.health = 225;
 	self.max_health = 225;
@@ -1328,7 +1328,7 @@ void(float bool) tactical_Melee =
 	if (fire_hit(aim, rint(ldmg), 10))
 	{	
 	//	if (bool == 1)
-			sound(self, CHAN_WEAPON, "sounds_q4/monsters/stroggmarine/weapon_slap.wav", 1, ATTN_NORM);
+			sound(self, CHAN_WEAPON, "sounds_q4/strogg/stroggmarine/weapon_slap.wav", 1, ATTN_NORM);
 	}
 	else
 	{

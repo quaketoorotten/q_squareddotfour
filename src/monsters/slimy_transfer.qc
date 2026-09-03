@@ -277,6 +277,12 @@ void() slimy_transf_meleea2 = [ self.frame, slimy_transf_meleea2 ]
 
 void() slimy_transf_MeleeAttack =
 {	
+	if (vlen(self.enemy.origin - self.origin) >= 80)
+	{
+		slimy_transf_MissileAttack ();
+		return;
+	}
+
 	slimy_transf_sfx_growl ();
 
 	slimy_transf_meleea1 ();

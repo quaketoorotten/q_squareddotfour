@@ -431,7 +431,7 @@ void() gladiator_missilea2 = [ self.frame, gladiator_missilea2 ]
 
     if (self.monster_frame < 37)
 	{
-		self.pos1 = self.enemy.origin + '0 0 22';
+		self.pos1 = self.enemy.origin + '0 0 46';
 	//	gla_flash2 ();
 	}
 
@@ -479,7 +479,7 @@ void() gladiator_missileb2 = [ self.frame, gladiator_missileb2 ]
 
     if (self.monster_frame < 24)
 	{
-		self.pos1 = self.enemy.origin + '0 0 22';
+		self.pos1 = self.enemy.origin + '0 0 46';
 		//gla_flash2 ();
 	}
 	
@@ -1174,7 +1174,9 @@ void() gla_Melee =
 
 void() gla_flash2 = 
 {   
-   
+	if (skill > 2)
+		return;
+	
     vector org;
 
     org = self.pos2;
@@ -1205,7 +1207,7 @@ void(float num = 0) gla_fireblaster =
 	else
     	org = self.origin + '0 0 56' + v_right * -26 + v_forward * (24 + num);
 
-    vector dir = normalize(self.enemy.origin - org);
+    vector dir = normalize(self.enemy.origin - org + '0 0 24');
 
     LaunchLaser (org, dir, '0 0 0', '0 0 0');
 

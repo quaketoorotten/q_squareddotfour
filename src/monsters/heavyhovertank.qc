@@ -1011,7 +1011,9 @@ void() hovertank_flash =
 
 void() hovertank_flash2 = 
 {   
-   
+	if (skill > 2)
+		return;
+	
     vector org;
 
     org = self.pos2;

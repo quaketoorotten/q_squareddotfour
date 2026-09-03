@@ -813,7 +813,7 @@ void() scientist_shoot =
 
 	org = self.origin + '0 0 48';
 
-	dir = en.origin - en.velocity*0.15;
+	dir = en.origin - en.velocity*0.15 + '0 0 24';
 	dir = normalize(dir - org);
 
 	vector f, r, u;
@@ -842,7 +842,7 @@ void() scientist_shoot =
 //PGM	
 
 //	float ldmg = 90 + (random() + random() + random())*12;
-	if (M_CalculatePitchToFire (self.enemy.origin, org, dir, 600, 0, TRUE, TRUE))
+	if (M_CalculatePitchToFire (self.enemy.origin + '0 0 24', org, dir, 600, 0, TRUE, TRUE))
 		gas (org, dir, (crandom() * 10), 80 + (crandom() * 10), 600);
 	else
 		gas (org, dir, (crandom() * 10), 200 + (crandom() * 10), 600);

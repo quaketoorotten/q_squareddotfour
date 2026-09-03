@@ -300,7 +300,7 @@ void() strm_prot_missilea2 = [ self.frame, strm_prot_missilea2 ]
 	{
 		local entity e = spawn();
 		setorigin (e, self.enemy.origin);
-		e.view_ofs = '0 0 -24';
+		e.view_ofs = '0 0 0';
 		e.think = SUB_Remove;
 		e.nextthink = time + 6;
 		self.oldenemy = self.enemy;
@@ -1054,7 +1054,7 @@ void() strm_prot_shoot_flame =
 
 	//self.pos2 = org ;
 
-	vector dir = normalize(self.enemy.origin - org + '0 0 -24');
+	vector dir = normalize(self.enemy.origin - org + '0 0 4');
 
 	vector f, r, u;
 	AngleVectors(self.angles, f, r, u);
@@ -1110,7 +1110,9 @@ void() strm_prot_flash =
 
 void() strm_prot_flash2 = 
 {   
-   
+	if (skill > 2)
+		return;
+	   
     vector org;
 
     org = self.pos2;

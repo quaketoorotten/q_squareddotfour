@@ -368,7 +368,7 @@ void(vector off) sentry_shoot =
 	pointparticles (particleeffectnum("TE_MUZZLEFLASH2"), org + v_forward * 24, '0 0 0');
 	pointparticles (particleeffectnum("EF_MUZZLEFLASH2"), org, '0 0 0');
 
-	dir = en.origin - en.velocity*0.15;
+	dir = en.origin - en.velocity*0.15  + '0 0 24';
 	dir = normalize(dir - org);
 
 	monster_FireBullets (1, org, dir, '0.05 0.05 0', 2, 2, 2000);

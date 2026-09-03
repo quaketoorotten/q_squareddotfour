@@ -1049,7 +1049,7 @@ void() grunt_shoot =
 	pointparticles (particleeffectnum("TE_MUZZLEFLASH2"), org + v_forward * 24, '0 0 0');
 	pointparticles (particleeffectnum("EF_MUZZLEFLASH2"), org, '0 0 0');
 
-	dir = en.origin - en.velocity*0.15;
+	dir = en.origin - en.velocity*0.15  + '0 0 24';
 	dir = normalize(dir - org);
 
 	monster_FireBullets (1, org, dir, '0.05 0.05 0', 4, 2, 2000);
@@ -1101,11 +1101,14 @@ static float() CheckGruntJump =
 	vector dist;
 	float d;
 
-	if (self.origin_z + self.mins_z > self.enemy.origin_z + self.enemy.mins_z
+	vector org = self.origin + '0 0 24';
+	vector enemy_org = self.enemy.origin + '0 0 24';
+
+	if (org_z + self.mins_z > enemy_org_z + self.enemy.mins_z
 	+ 0.75 * self.enemy.size_z)
 		return FALSE;
 
-	if (self.origin_z + self.maxs_z < self.enemy.origin_z + self.enemy.mins_z
+	if (org_z + self.maxs_z < enemy_org_z + self.enemy.mins_z
 	+ 0.25 * self.enemy.size_z)
 		return FALSE;
 

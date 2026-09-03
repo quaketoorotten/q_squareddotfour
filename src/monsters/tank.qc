@@ -354,7 +354,7 @@ void() tank_missilea2 = [ self.frame, tank_missilea2 ]
 	{
 		local entity e = spawn();
 		setorigin (e, self.enemy.origin);
-		e.view_ofs = '0 0 -24';
+		e.view_ofs = '0 0 0';
 		e.think = SUB_Remove;
 		e.nextthink = time + 6;
 		self.oldenemy = self.enemy;
@@ -546,7 +546,7 @@ void() tank_meleec2 = [ self.frame, tank_meleec2 ]
 	self.nextthink = time + 0.04167;
 
 	if (self.monster_frame == 9)
-		tank_Melee(60);
+		tank_Melee(80);
 
 	if (self.monster_frame >= 29)  
 	{   
@@ -994,7 +994,9 @@ void() tank_flash =
 
 void() tank_flash2 = 
 {   
-   
+ 	if (skill > 2)
+		return;
+	  
     vector org;
 
     org = self.pos2;
