@@ -1,3 +1,4 @@
+const float EVENT_MP_MFLASH	 	= 86; 
 const float EVENT_TOGGLE_FLASH	 	= 87; 
 const float EVENT_PICKUP	 	= 88; 
 const float EVENT_HITMARKER	 	= 89; 
@@ -203,6 +204,30 @@ void(vector p1, vector p2, float() draw, float death, float size) spawn_thunderb
 	e.die = time + death;
 };
 
+float () mflash_partdraw = 
+{
+	if (self.die < time)
+	{	
+		remove(self);
+		return PREDRAW_AUTOADD;
+	}
+
+	//pointparticles (particleeffectnum("TE_MUZZLEFLASH2"), self.origin , '0 0 0');
+	pointparticles (particleeffectnum("EF_MUZZLEFLASH2"), self.origin , '0 0 0');
+
+	return PREDRAW_AUTOADD;
+}
+ 
+void(vector p1) spawn_mflash_part =
+{
+	local entity e;
+	e = spawn ();
+	e.origin = p1;
+	e.predraw = mflash_partdraw;
+	e.drawmask = MASK_ENGINE;
+	e.die = time + 0.03;	
+}
+
 //function is called whenever the client receives a SVC_CGAMEPACKET
 noref void() CSQC_Parse_Event =
 {
@@ -305,6 +330,17 @@ noref void() CSQC_Parse_Event =
 	{
 		flash_activate = TRUE;
 		flash_active = TRUE;
+	}
+	if(first == EVENT_MP_MFLASH)
+	{
+		pos1_x = readcoord();
+		pos1_y = readcoord();
+		pos1_z = readcoord();
+
+		ent = readentitynum();
+
+		if (ent != player_localentnum)
+			spawn_mflash_part (pos1);
 	}
 }
 

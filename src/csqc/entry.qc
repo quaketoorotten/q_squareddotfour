@@ -114,6 +114,10 @@ void(float apilevel, string enginename, float engineversion) CSQC_Init =
 	particleeffectnum ("TE_RAIL_SPIRAL");
 	particleeffectnum ("TE_RAIL_LEFTOVER_2");
 	particleeffectnum ("TE_RAIL_SPIRAL_2");
+
+	particleeffectnum ("TE_MUZZLEFLASH2");
+	particleeffectnum ("EF_MUZZLEFLASH2");
+
 	precache_model ("progs/s_explod.spr");
 
 	Hud_Init();

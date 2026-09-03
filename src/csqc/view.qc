@@ -57,9 +57,9 @@ typedef struct {
 	vector	dir;		// scaled larger for running
 } loggedAccel_t;
 
-static const float	NUM_LOGGED_VIEW_ANGLES = 64;		// for weapon turning angle offsets
+#define NUM_LOGGED_VIEW_ANGLES 64		// for weapon turning angle offsets
 static vector		loggedViewAngles[NUM_LOGGED_VIEW_ANGLES];	// [gameLocal.framenum&(LOGGED_VIEW_ANGLES-1)]
-static const float	NUM_LOGGED_ACCELS = 16;			// for weapon turning angle offsets
+#define	NUM_LOGGED_ACCELS 16			// for weapon turning angle offsets
 loggedAccel_t		loggedAccel[NUM_LOGGED_ACCELS];	// [currentLoggedAccel & (NUM_LOGGED_ACCELS-1)]
 static float		currentLoggedAccel;
 
@@ -1078,6 +1078,14 @@ void() V_CalcRefDef =
 		return;
 	}
 	
+	float local_shealth = getstatf(STAT_HEALTH);
+	if (local_shealth <= 0)
+	{	
+		tlit_screen = TRUE;
+	}
+	else
+		tlit_screen = FALSE;
+
 	sfov = getstatf(STAT_SFOV);
 	last_viewangles = view_angles;
 	fix_angles = FALSE;
@@ -1167,6 +1175,13 @@ void() V_CalcRefDef =
 	{	
 		makevectors(getviewprop(VF_CL_VIEWANGLES));
 		setproperty(VF_ORIGIN, view_origin + v_forward * -64 + v_up * 24);
+	}
+	else if (cvar("chase_active") == 2)
+	{	
+		makevectors(getviewprop(VF_CL_VIEWANGLES));
+		view.viewBobAngles[0] = -view.viewBobAngles[0];
+		view.viewBobAngles[1] = -view.viewBobAngles[1];
+		setproperty(VF_ORIGIN, view_origin + v_forward * 72 + v_up * 16);
 	}
 	else
 		setproperty(VF_ORIGIN, view_origin + view.viewBob);
